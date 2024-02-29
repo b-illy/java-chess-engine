@@ -18,7 +18,7 @@ public class EnPassantMove extends Move {
         Board board = new Board(this.piece.getBoard().getFEN());
         
         // find where the pawn which is being taken en passant is located
-        Coord otherPawnCoord = new Coord(this.coord.getX(), this.coord.getY() + (this.piece.getColour() == 1 ? -1 : 1));
+        Coord otherPawnCoord = new Coord(this.coord.getX(), this.coord.getY() + (this.piece.getColour() == Colour.White ? -1 : 1));
         // make sure that there is a pawn here
         if (board.pieceAt(otherPawnCoord).getType() != PieceType.pawn) {
             throw new RuntimeException("Couldn't find a pawn on en passant square");

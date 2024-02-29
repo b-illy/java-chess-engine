@@ -1,12 +1,12 @@
 import java.util.ArrayList;
 
 public class Piece {
-    private byte colour; // 0 = black, 1 = white
+    private Colour colour;
     private PieceType type;
     private Coord coord;
     private Board board;
 
-    public Piece(byte colour, PieceType type, Coord coord, Board board) {
+    public Piece(Colour colour, PieceType type, Coord coord, Board board) {
         this.colour = colour;
         this.type = type;
         this.coord = coord;
@@ -64,7 +64,7 @@ public class Piece {
                 // check for clear path between king and rook, add the move if available
 
                 // short / kingside castling
-                if (castling[this.colour][1]) {
+                if (castling[this.colour == Colour.White ? 1 : 0][1]) {
                     for (int x = this.coord.getX() + 1; x < 8; x++) {
                         if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.empty) {
                             continue;
@@ -77,7 +77,7 @@ public class Piece {
                 }
 
                 // long / queenside castling
-                if (castling[this.colour][1]) {
+                if (castling[this.colour == Colour.White ? 1 : 0][1]) {
                     for (int x = this.coord.getX() - 1; x >= 0; x--) {
                         if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.empty) {
                             continue;
@@ -226,7 +226,7 @@ public class Piece {
 
                 // pawn move direction is affected by colour, use this variable to simplify things
                 int moveDirection = 1;  // white moves up the board
-                if (this.colour != 1) moveDirection = -1;  // black moves down the board
+                if (this.colour == Colour.Black) moveDirection = -1;  // black moves down the board
 
                 // check if promotion is possible (pawn on penultimate rank)
                 if (this.coord.getY() == (moveDirection == 1 ? 6 : 1)) {
@@ -387,7 +387,7 @@ public class Piece {
         return false;  // not found
     }
 
-    public byte getColour() {
+    public Colour getColour() {
         return this.colour;
     }
 

@@ -37,7 +37,7 @@ public class Move {
 
         // 2-size array representing castling oppurtunities for the colour of the piece of this move
         // 0=short, 1=long e.g. [true, false] means short is possible but not long
-        boolean[] myColourCastle = this.board.getCastlingPossibilities()[this.piece.getColour()];
+        boolean[] myColourCastle = this.board.getCastlingPossibilities()[this.piece.getColour() == Colour.White ? 1 : 0];
         // if any type of castling is possible for this side...
         if (myColourCastle[0] || myColourCastle[1]) {
             // any king move makes any type of castling impossible
@@ -52,11 +52,11 @@ public class Move {
                 int castleType = 0;  // 0=long, 1=short
                 if (this.piece.getCoord().getX() > this.board.getKing(this.piece.getColour()).getCoord().getX()) {
                     // rook has higher x coord than king
-                    if (this.piece.getColour() != 0) castleType = 0;  // white, long
+                    if (this.piece.getColour() == Colour.White) castleType = 0;  // white, long
                     else castleType = 1;  // black, short
                 } else {
                     // rook has lower (or same but illegal) x coord than king
-                    if (this.piece.getColour() != 0) castleType = 1;  // white, short
+                    if (this.piece.getColour() == Colour.White) castleType = 1;  // white, short
                     else castleType = 0;  // black, long
                 }
 
@@ -72,7 +72,7 @@ public class Move {
         } else {
             // set appropriate en passant square if this piece is a pawn moving 2 squares
             if (Math.abs(this.piece.getCoord().getY() - this.coord.getY()) == 2) {
-                board.setEnPassantSquare(new Coord(this.coord.getX(), this.coord.getY() - (this.piece.getColour() == 1 ? 1 : -1)));
+                board.setEnPassantSquare(new Coord(this.coord.getX(), this.coord.getY() - (this.piece.getColour() == Colour.White ? 1 : -1)));
             }
         }
 

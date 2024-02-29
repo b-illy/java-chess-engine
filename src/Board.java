@@ -5,7 +5,7 @@ public class Board {
     
     private Piece[][] tiles = new Piece[8][8];
     private GameState gameState;
-    private boolean whiteToMove;
+    private Colour sideToMove;
     private Coord enPassantTarget = new Coord(-1,-1);  // placeholder invalid coord
     private int halfmove;
     private int move;
@@ -44,10 +44,10 @@ public class Board {
             // therefore we need to check if the king is in check right now
 
             // search for opponents next moves to see if any could capture the king
-            boolean isInCheck = this.isSquareAttacked(this.getKing(whiteToMove ? (byte)1 : (byte)0).getCoord(), whiteToMove ? (byte)0 : (byte)1);
+            boolean isInCheck = this.isSquareAttacked(this.getKing(this.sideToMove).getCoord(), this.sideToMove == Colour.White ? Colour.Black : Colour.White);
 
             if (isInCheck) {
-                this.gameState = (this.whiteToMove ? GameState.BlackWon : GameState.WhiteWon);
+                this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
             } else {
                 this.gameState = GameState.Draw;
             }
@@ -89,7 +89,7 @@ public class Board {
                 }
 
                 // make white pieces uppercase
-                if (this.tiles[i][j].getColour() == 1) {
+                if (this.tiles[i][j].getColour() == Colour.White) {
                     charSeq[x] = Character.toUpperCase(charSeq[x]);
                 }
 
@@ -138,7 +138,7 @@ public class Board {
 
                     // add the correct amount of empty spaces to this row
                     for (int a = 0; a < value; a++) {
-                        this.tiles[i][x] = new Piece((byte) -1, PieceType.empty, new Coord(x, 7-i), this);
+                        this.tiles[i][x] = new Piece(Colour.None, PieceType.empty, new Coord(x, 7-i), this);
                         if (a < value - 1) x++;
                     }
                 } else if ("kqrbnpKQRBNP".indexOf(rows[i].charAt(j)) != -1) {
@@ -154,12 +154,12 @@ public class Board {
                         default:  return false;  // invalid character, error
                     }
 
-                    byte colour;
+                    Colour colour;
 
                     if (rows[i].charAt(j) == rows[i].toLowerCase().charAt(j)) {
-                        colour = 0; // black
+                        colour = Colour.Black;
                     } else {
-                        colour = 1; // white
+                        colour = Colour.White;
                     }
 
                     this.tiles[i][x] = new Piece(colour, type, new Coord(x, 7-i), this);
@@ -176,9 +176,9 @@ public class Board {
         // field 1: current turn
         // white = 1, black = 0
         switch (fields[1]) {
-            case "w": this.whiteToMove = true;  break;
-            case "b": this.whiteToMove = false; break;
-            default:  this.whiteToMove = true;
+            case "w": this.sideToMove = Colour.White;  break;
+            case "b": this.sideToMove = Colour.Black;  break;
+            default:  this.sideToMove = Colour.None;  // should never occur
         }
 
         // field 2: castling ability
@@ -241,7 +241,7 @@ public class Board {
                     }
 
                     // make uppercase if white
-                    if (t.getColour() == 1) pieceChar = Character.toUpperCase(pieceChar);
+                    if (t.getColour() == Colour.White) pieceChar = Character.toUpperCase(pieceChar);
 
                     str += pieceChar;
                 }
@@ -256,7 +256,7 @@ public class Board {
 
         // FIELD 2 - active colour
         str += " ";
-        if (this.whiteToMove) str += "w";
+        if (this.sideToMove == Colour.White) str += "w";
         else str += "b";
 
 
@@ -289,8 +289,8 @@ public class Board {
     }
 
     // TODO: review necessity, this is currently unused
-    public boolean isWhiteToMove() {
-        return this.whiteToMove;
+    public Colour getSideToMove() {
+        return this.sideToMove;
     }
 
     // there are 2 different ways of representing coordinates in this project
@@ -328,7 +328,7 @@ public class Board {
         // finalY = x
     }
 
-    public boolean isSquareAttacked(Coord atCoord, byte byColour) {
+    public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
         Board newBoard = new Board(this.getFEN());  // create temporary clone board
         newBoard.incMoveCount();  // let the opponent move
 
@@ -359,7 +359,7 @@ public class Board {
     // returns the piece object for the king of a given colour.
     // assumes that a position is valid and such has exactly one
     // king of each colour on the board; no more and no less
-    public Piece getKing(byte colour) {
+    public Piece getKing(Colour colour) {
         // linear search over each square to check for king of given colour
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
@@ -394,9 +394,11 @@ public class Board {
         Integer repetitions = this.repetitionTable.get(this.getStrippedFEN());
         this.repetitionTable.put(this.getStrippedFEN(), (repetitions == null ? 1 : repetitions + 1));
 
-        this.whiteToMove = !this.whiteToMove;  // switch colour due to move
+        // switch colour due to move
+        if (this.sideToMove == Colour.White) this.sideToMove = Colour.Black;
+        else this.sideToMove = Colour.White;
         this.halfmove++;  // inc halfmove counter by 1
-        if (this.whiteToMove) this.move++;  // inc fullmove count if necessary
+        if (this.sideToMove == Colour.White) this.move++;  // inc fullmove count if necessary
     }
 
     public void resetHalfMoveCount() {
@@ -408,14 +410,14 @@ public class Board {
     // colour: 0=black, 1=white
     // type:   0=long,  1=short
     // return true means success, false means failure
-    public boolean removeCastling(byte colour, int type) {
-        if (colour < 0 || colour > 1 || type < 0 || type > 1) {
+    public boolean removeCastling(Colour colour, int type) {
+        if (colour == Colour.None) {
             // invalid parameter
             return false;
         }
 
         // update castling possibilities
-        this.canCastle[colour][type] = false;
+        this.canCastle[colour == Colour.White ? 1 : 0][type] = false;
 
         return true;
     }
@@ -425,7 +427,7 @@ public class Board {
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 // filter for pieces of appropriate colour based on turn
-                if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == (this.whiteToMove ? 1 : 0)) {
+                if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == this.sideToMove) {
                     count += this.pieceAt(i, j).getLegalMoves().size();
                     // for (Move m : this.pieceAt(i, j).getLegalMoves()) {
                     //     System.out.println(m);
