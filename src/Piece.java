@@ -61,8 +61,7 @@ public class Piece {
                 // there also can't be any pieces in the way.
                 boolean[][] castling = this.getBoard().getCastlingPossibilities();
 
-                // TODO: checking for clear path between king and rook
-
+                // check for clear path between king and rook, add the move if available
 
                 // short / kingside castling
                 if (castling[this.colour][1]) {
@@ -342,7 +341,7 @@ public class Piece {
             // for each piece in the new position...
             for (int i = 0; i < 8; i++) {
                 for (int j = 0; j < 8; j++) {
-                    if (newBoard.pieceAt(i, j).type == PieceType.empty) {
+                    if (newBoard.pieceAt(i, j).getType() == PieceType.empty) {
                         continue;  // ignore squares without pieces
                     } else {
                         // check each candidate move for this piece and see if it could move to the king's square

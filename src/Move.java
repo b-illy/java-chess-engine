@@ -18,9 +18,14 @@ public class Move {
     }
 
     public Board simulate() {
-        // if (!this.isLegal()) throw new Error("move cannot be simulated as it would be illegal");
         // make a copy of the board
         Board board = new Board(this.piece.getBoard().getFEN());
+
+        // reset halfmove clock for 50 move rule if applicable
+        // pawn move
+        if (this.piece.getType() == PieceType.pawn) board.resetHalfMoveCount();
+        // capture
+        if (board.pieceAt(this.coord).getType() != PieceType.empty) board.resetHalfMoveCount();
 
         // overwrite the piece being taken, creating a copy
         board.pieceAt(this.coord).overwrite(this.piece);

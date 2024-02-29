@@ -34,6 +34,9 @@ public class PromotionMove extends Move {
         // update en passant target (make it out of bounds to represent no en passant square)
         board.setEnPassantSquare(new Coord(-1, -1));
 
+        // reset halfmove clock for 50 move rule (this is a pawn move)
+        board.resetHalfMoveCount();
+
         // return the new modified copy of the board
         board.incMoveCount();
         return board;

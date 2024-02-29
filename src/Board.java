@@ -1,26 +1,69 @@
+import java.util.HashMap;
+
 public class Board {
     private final static String startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     
     private Piece[][] tiles = new Piece[8][8];
-    private byte gameState; // -1 = ongoing, 0 = black win, 1 = white win, 2 = draw
+    private GameState gameState;
     private boolean whiteToMove;
-    private boolean[][] canCastle = new boolean[2][2];  // first index is colour, second is direction
-                                                        // 0=black, 1=white, 0=short, 1=long
     private Coord enPassantTarget = new Coord(-1,-1);  // placeholder invalid coord
     private int halfmove;
     private int move;
+    private HashMap<String, Integer> repetitionTable;
+    private boolean[][] canCastle = new boolean[2][2];  // first index is colour, second is direction
+                                                        // 0=black, 1=white, 0=short, 1=long
     
+    // main constructor, initialises board from fen string (falls back to default position)
     public Board(String fen) {
+        // try to load fen
         if (!this.loadFEN(fen)) {
+            // fallback to default fen
             if (!this.loadFEN(Board.startFEN)) {
+                // error if could not load
                 System.out.println("Failed to load given FEN or default FEN");
                 throw new ExceptionInInitializerError("Failed to load given FEN or default FEN");
             }
         }
+
+        // init empty repetition table
+        this.repetitionTable = new HashMap<String, Integer>();
+        // naively assume game is ongoing -- can't call getGameState here or infinite loop
+        this.gameState = GameState.Ongoing;
     }
     
+    // constructor for creating board with default position (starting position)
     public Board() {
         this(Board.startFEN);
+    }
+
+    // updates game state and then returns it
+    public GameState getGameState() {
+        // no legal moves, game is over
+        if (this.getLegalMoveCount() == 0) {
+            // its stalemate if king not in check, checkmate otherwise
+            // therefore we need to check if the king is in check right now
+
+            // search for opponents next moves to see if any could capture the king
+            boolean isInCheck = this.isSquareAttacked(this.getKing(whiteToMove ? (byte)1 : (byte)0).getCoord(), whiteToMove ? (byte)0 : (byte)1);
+
+            if (isInCheck) {
+                this.gameState = (this.whiteToMove ? GameState.BlackWon : GameState.WhiteWon);
+            } else {
+                this.gameState = GameState.Draw;
+            }
+
+        } else if (this.repetitionTable.get(this.getStrippedFEN()) != null &&
+                   this.repetitionTable.get(this.getStrippedFEN()) >= 3) {
+            // if position has been repeated 3 times, draw by repetition
+            this.gameState = GameState.Draw;
+        } else if (this.halfmove >= 100) {
+            // if 50 moves have passed, draw by inactivity
+            this.gameState = GameState.Draw;
+        } else {
+            this.gameState = GameState.Ongoing;
+        }
+
+        return this.gameState;
     }
 
     public void print() {
@@ -61,8 +104,8 @@ public class Board {
         return new String(charSeq);
     }
 
+    // wrapper function, load default position if no string given
     public boolean loadFEN() {
-        // wrapper function, load default position if no string given
         return this.loadFEN(Board.startFEN);
     }
 
@@ -158,6 +201,11 @@ public class Board {
 
         // everything seems to have worked, success (return true)
         return true;
+    }
+
+    // wrapper function for below, describes only the positions of pieces
+    public String getStrippedFEN() {
+        return this.getFEN().split(" ")[0];
     }
 
     // converts the position of this board into a FEN string
@@ -280,6 +328,29 @@ public class Board {
         // finalY = x
     }
 
+    public boolean isSquareAttacked(Coord atCoord, byte byColour) {
+        Board newBoard = new Board(this.getFEN());  // create temporary clone board
+        newBoard.incMoveCount();  // let the opponent move
+
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (newBoard.pieceAt(i, j).getType() == PieceType.empty || newBoard.pieceAt(i, j).getColour() != byColour) {
+                    continue;  // ignore squares without pieces and our own pieces
+                } else {
+                    // check each candidate move for this piece and see if it could move to the king's square
+                    for (Move m : newBoard.pieceAt(i, j).getCandidateMoves()) {
+                        if (m.getCoord().equals(atCoord)) {
+                            // this move would move onto this square
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     // wrapper for the above function, just passes x and y of the coord into it
     public Piece pieceAt(Coord coord) {
         return this.pieceAt(coord.getX(), coord.getY());
@@ -319,11 +390,17 @@ public class Board {
     }
 
     public void incMoveCount() {
+        // now is the perfect time to store this position in the repetition table
+        Integer repetitions = this.repetitionTable.get(this.getStrippedFEN());
+        this.repetitionTable.put(this.getStrippedFEN(), (repetitions == null ? 1 : repetitions + 1));
+
         this.whiteToMove = !this.whiteToMove;  // switch colour due to move
         this.halfmove++;  // inc halfmove counter by 1
-        if (this.halfmove % 2 == 0) {
-            this.move++;  // inc fullmove count if necessary
-        }
+        if (this.whiteToMove) this.move++;  // inc fullmove count if necessary
+    }
+
+    public void resetHalfMoveCount() {
+        this.halfmove = 0;
     }
 
     // removes the possibility of castling for a certain colour in a certain direction
