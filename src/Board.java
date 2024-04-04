@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Board {
@@ -429,13 +430,32 @@ public class Board {
                 // filter for pieces of appropriate colour based on turn
                 if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == this.sideToMove) {
                     count += this.pieceAt(i, j).getLegalMoves().size();
-                    // for (Move m : this.pieceAt(i, j).getLegalMoves()) {
-                    //     System.out.println(m);
-                    // }
                 }
             }
         }
 
         return count;
+    }
+
+    public ArrayList<Move> getLegalMoves() {
+        ArrayList<Move> legalMoves = new ArrayList<Move>();
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                // filter for pieces of appropriate colour based on turn
+                if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == this.sideToMove) {
+                    legalMoves.addAll(this.pieceAt(i, j).getLegalMoves());
+                }
+            }
+        }
+
+        return legalMoves;
+    }
+
+    public int getMoveNumber() {
+        return this.move;
+    }
+
+    public int getHalfMoveNumber() {
+        return this.halfmove;
     }
 }
