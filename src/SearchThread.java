@@ -8,36 +8,48 @@ public class SearchThread extends Thread {
     long myTimeLeftMs;
     long oppTimeLeftMs;
     Date timeStarted;
+    long goalTimeMs;
 
     Board rootPos;
 
     Move bestMove;
-    Evaluation bestEval;
+    Evaluation eval;
+    int maxDepthReached;
 
-    public SearchThread(Board rootPos, int myTimeLeftMs, int oppTimeLeftMs) {
+    public SearchThread(Board rootPos, long myTimeLeftMs, long oppTimeLeftMs) {
         this.stopSignal = false;
-        this.rootPos = rootPos;
         this.myTimeLeftMs = myTimeLeftMs;
         this.oppTimeLeftMs = oppTimeLeftMs;
+        this.goalTimeMs = -1;
+        this.rootPos = rootPos;
         // note: for the time being, oppTimeLeftMs is ignored with the assumption that
         // this engine will only be playing other engines, which generally are not supposed
         // to think on their opponents time. in adapting this engine for better performance
         // against humans, however, you would not want to ignore this, so it remains a stub.
     }
 
+    public SearchThread(Board rootPos, long goalTimeMs) {
+        this.stopSignal = false;
+        this.goalTimeMs = Math.max(0, goalTimeMs);
+        this.rootPos = rootPos;
+    }
+
     public void run() {
         // date object used to keep track of how much time has elapsed
         this.timeStarted = new Date();
         
-        // take an educated (very approximate) guess at how many more moves we will have to make this game
-        // to be safe, this guess is quite conservative i.e. most likely bigger than it needs to be
-        int estMovesLeft = 50;
-        if (this.rootPos.getMoveNumber() > 30) estMovesLeft -= (this.rootPos.getMoveNumber() - 30) / 2;
-        estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
-        
-        // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
-        long goalTimeMs = myTimeLeftMs / estMovesLeft;
-        // TODO: detect if this game is being played with increment and account for that
+        // calculate a reasonable goal time if none is provided using time left and move count
+        if (this.goalTimeMs < 0) {
+            // take an educated (very approximate) guess at how many more moves we will have to make this game
+            // to be safe, this guess is quite conservative i.e. most likely bigger than it needs to be
+            int estMovesLeft = 50;
+            if (this.rootPos.getMoveNumber() > 30) estMovesLeft -= (this.rootPos.getMoveNumber() - 30) / 2;
+            estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
+            
+            // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
+            this.goalTimeMs = myTimeLeftMs / estMovesLeft;
+            // TODO: detect if this game is being played with increment and account for that
+        }
 
         // setup parameters used to decide when to stop
         long lastIterTimeMs = 0;
@@ -52,11 +64,12 @@ public class SearchThread extends Thread {
             passedTimeMs += lastIterTimeMs;
 
             // stop searching if we've taken longer than goal time or are too close to continue
-            if (passedTimeMs + 4*lastIterTimeMs >= goalTimeMs) {
+            if (passedTimeMs + 4*lastIterTimeMs >= this.goalTimeMs) {
                 stopSignal = true;
                 break;
             }
 
+            this.maxDepthReached = idsDepth;
             idsDepth++;
         }
     }
@@ -112,7 +125,7 @@ public class SearchThread extends Thread {
 
         // to be executed on the head / root pos (for this minimax search) only
         if (isRoot) {
-            this.bestEval = bestEvalHere;
+            this.eval = bestEvalHere;
             this.bestMove = bestMoveHere;
         }
 
@@ -123,11 +136,15 @@ public class SearchThread extends Thread {
         this.stopSignal = true;
     }
 
-    public Evaluation getBestEval() {
-        return this.bestEval;
+    public Evaluation getEval() {
+        return this.eval;
     }
 
     public Move getBestMove() {
         return this.bestMove;
+    }
+
+    public int getMaxDepthReached() {
+        return this.maxDepthReached;
     }
 }

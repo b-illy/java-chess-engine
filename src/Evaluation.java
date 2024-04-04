@@ -76,15 +76,15 @@ public class Evaluation {
         if (this.isGameOver) type = 2;
 
         switch(type) {
-            case 0:
+            case 0: // normal type eval
                 return (this.whiteIsBetter ? "+" : "-") + Double.toString((double)this.centipawnsMagnitude / (double)100);
-            case 1:
+            case 1: // forced mate
                 return (this.whiteIsBetter ? "+" : "-") + "M" + Integer.toString(this.movesToForcedCheckmate);
-            case 2:
+            case 2: // game over
                 if (this.winningColour == Colour.White) return "1-0";
                 else if (this.winningColour == Colour.Black) return "0-1";
                 else return "0.5-0.5";
-            default:
+            default: // failsafe
                 return "";
         }
     }

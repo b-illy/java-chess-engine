@@ -2,7 +2,7 @@ import java.util.Date;
 
 public class Main {
     private final static boolean testMode = true;
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         if (testMode) {
             System.out.println("--> NOTICE: Test mode ACTIVE");
             System.out.println("--> Testing FEN loading and printing");
@@ -45,7 +45,7 @@ public class Main {
                         e.printStackTrace();
                         break;
                     }
-                    System.out.println("Evaluation: " + st.getBestEval());
+                    System.out.println("Evaluation: " + st.getEval());
                     System.out.println("Best move: " + st.getBestMove());
                     System.out.println("Time taken (ms): " + ((new Date()).getTime() - startDate.getTime()));
                 }
@@ -83,7 +83,23 @@ public class Main {
                     testBoard.print();
                 }
             }
+
+            // play a game against itself
+            System.out.println("\n\n--> Attempting to play a game against self\n");
+            testBoard.loadFEN(); // load default position
+            while (testBoard.getGameState() == GameState.Ongoing) {
+                Date startDate = new Date();
+                SearchThread st = new SearchThread(testBoard, 3000);
+                st.start();
+                st.join();
+                st.getBestMove().make();
+                testBoard.print();
+                System.out.println("Eval: " + st.getEval() + "\n");
+                System.out.println("Time taken (ms): " + ((new Date()).getTime() - startDate.getTime()));
+                System.out.println("Max depth: " + st.getMaxDepthReached());
+            }
         }
+
 
     }
 }
