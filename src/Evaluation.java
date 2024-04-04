@@ -27,10 +27,6 @@ public class Evaluation {
         this.isGameOver = false;
     }
 
-    public Evaluation(double standardEval) {
-        this(Math.round(standardEval*(double)100));
-    }
-
     // handles forced checkmates like -M7, M2
     public Evaluation(int movesToForcedCheckmate, boolean isForWhite) {
         this.isForcedCheckmate = true;
@@ -57,12 +53,19 @@ public class Evaluation {
     }
 
     // convert to very basic long format -- easier for comparisons
+    // explatatory examples with Long.MAX_VALUE=1000000 in a theoretical scenario:
+    // a finished game is -1000000 or 0 or 1000000 depending on side
+    // a forced mate in 5 is +-999995 depending on side
+    // any forced mate in more moves than mfmd(=500) is +-999500 (they are treated as equal therefore)
+    // the max normal-type eval is +-999499 with mfmd=500
     public long toLong() {
-        if (this.isForcedCheckmate || this.isGameOver) {
-            if (this.whiteIsBetter) return Long.MAX_VALUE;
-            else return Long.MIN_VALUE;
+        if (this.isGameOver) {
+            if (this.winningColour == Colour.None) return 0;
+            return Long.MAX_VALUE * (this.winningColour == Colour.White ? 1 : -1);
+        } else if (this.isForcedCheckmate) {
+            return (Long.MAX_VALUE - Math.min(this.movesToForcedCheckmate, Constants.MAX_FORCED_MATE_DEPTH)) * (this.whiteIsBetter ? 1 : -1);
         } else {
-            return this.centipawnsMagnitude * (this.whiteIsBetter ? 1 : -1);
+            return Math.min(this.centipawnsMagnitude, Long.MAX_VALUE-Constants.MAX_FORCED_MATE_DEPTH-1) * (this.whiteIsBetter ? 1 : -1);
         }
     }
 

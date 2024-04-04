@@ -1,3 +1,5 @@
+import java.util.Date;
+
 public class Main {
     private final static boolean testMode = true;
     public static void main(String[] args) {
@@ -10,10 +12,13 @@ public class Main {
             testBoard.print();
 
             String[] testFENs = {
-                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-                "8/5k2/3p4/1p1Pp2p/pP2Pp1P/P4P1K/8/8 b - - 99 50",
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // normal start pos
+                "8/5k2/3p4/1p1Pp2p/pP2Pp1P/P4P1K/8/8 b - - 99 40",
                 "rnQ2bn1/p2pp1p1/8/8/3PN1p1/1P6/4B2P/2R1K2R w - - 0 0",
-                "rnbq1bnr/ppppkppp/8/4p3/4P3/8/PPPPKPPP/RNBQ1BNR w - - 2 3"
+                "rnbq1bnr/ppppkppp/8/4p3/4P3/8/PPPPKPPP/RNBQ1BNR w - - 2 3",
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R2QKBNR w KQkq - 0 1", // white missing k+b
+                "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // black missing q
+                "rnbqkbnr/ppppp2p/5p2/6p1/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3" // fools mate (m1)
             };
 
             for (int i = 0; i < testFENs.length; i++) {
@@ -29,6 +34,20 @@ public class Main {
                     } else {
                         System.out.println("ERROR: FEN mismatch, returned: " + testBoard.getFEN());
                     }
+
+                    // evaluation testing
+                    Date startDate = new Date();
+                    SearchThread st = new SearchThread(testBoard, 50000, 0);
+                    st.start();
+                    try {
+                        st.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        break;
+                    }
+                    System.out.println("Evaluation: " + st.getBestEval());
+                    System.out.println("Best move: " + st.getBestMove());
+                    System.out.println("Time taken (ms): " + ((new Date()).getTime() - startDate.getTime()));
                 }
             }
 

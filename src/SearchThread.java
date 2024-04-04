@@ -5,8 +5,8 @@ public class SearchThread extends Thread {
     boolean stopSignal;
 
     // time tracking variables - create goal search time, stop searching automatically when reached
-    int myTimeLeftMs;
-    int oppTimeLeftMs;
+    long myTimeLeftMs;
+    long oppTimeLeftMs;
     Date timeStarted;
 
     Board rootPos;
@@ -36,48 +36,98 @@ public class SearchThread extends Thread {
         estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
         
         // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
-        int goalTimeMs = myTimeLeftMs / estMovesLeft;
+        long goalTimeMs = myTimeLeftMs / estMovesLeft;
         // TODO: detect if this game is being played with increment and account for that
 
-        // TODO
+        // setup parameters used to decide when to stop
+        long lastIterTimeMs = 0;
+        long passedTimeMs = 0;
+        int idsDepth = 0;
+
+        // do iterative deepening search using underlying minimax function
+        while (idsDepth <= Constants.MAX_MINIMAX_DEPTH && !stopSignal) {
+            Date iterStartDate = new Date();
+            minimax(this.rootPos, idsDepth, this.rootPos.getSideToMove() == Colour.White);
+            lastIterTimeMs = (new Date()).getTime() - iterStartDate.getTime();
+            passedTimeMs += lastIterTimeMs;
+
+            // stop searching if we've taken longer than goal time or are too close to continue
+            if (passedTimeMs + 4*lastIterTimeMs >= goalTimeMs) {
+                stopSignal = true;
+                break;
+            }
+
+            idsDepth++;
+        }
     }
 
-    // reference: https://www.youtube.com/watch?v=l-hh51ncgDI
+    // minimax reference: https://www.youtube.com/watch?v=l-hh51ncgDI
+
+    // wrapper function with minimal arguments
     private Evaluation minimax(Board pos, int depth, boolean max) {
-        return minimax(pos, depth, max, new Evaluation(Colour.Black), new Evaluation(Colour.White));
+        return minimax(pos, depth, true, max, new Evaluation(Colour.Black), new Evaluation(Colour.White));
     }
 
-    private Evaluation minimax(Board pos, int depth, boolean max, Evaluation alpha, Evaluation beta) {
+    // main minimax function
+    private Evaluation minimax(Board pos, int depth, boolean isRoot, boolean max, Evaluation alpha, Evaluation beta) {
+        // do not keep searching if stop signal was detected, just return placeholder eval to get ignored
+        if (stopSignal) {
+            return max ? new Evaluation(Colour.Black) : new Evaluation(Colour.White);
+        }
+
         if (depth == 0 || pos.getGameState() != GameState.Ongoing) {
             return HeuristicEval.evaluate(pos);
         }
 
+        Evaluation bestEvalHere;
+        Move bestMoveHere = null;
+
         if (max) {
-            Evaluation maxEval = new Evaluation(Colour.Black);
+            bestEvalHere = new Evaluation(Colour.Black); // track maximum
             for (Move m : pos.getLegalMoves()) {
-                Evaluation eval = minimax(m.simulate(), depth-1, false, alpha, beta);
-                if (eval.toLong() > maxEval.toLong()) maxEval = eval;
+                Evaluation eval = minimax(m.simulate(), depth-1, false, false, alpha, beta);
+                if (eval.toLong() > bestEvalHere.toLong()) {
+                    bestEvalHere = eval;
+                    bestMoveHere = m;
+                }
                 if (eval.toLong() > alpha.toLong()) alpha = eval;
                 if (beta.toLong() <= alpha.toLong()) {
                     break;
                 }
             }
-            return maxEval;
         } else {
-            Evaluation minEval = new Evaluation(Colour.White);
+            bestEvalHere = new Evaluation(Colour.White); // track minimum
             for (Move m : pos.getLegalMoves()) {
-                Evaluation eval = minimax(m.simulate(), depth-1, true, alpha, beta);
-                if (eval.toLong() < minEval.toLong()) minEval = eval;
+                Evaluation eval = minimax(m.simulate(), depth-1, false, true, alpha, beta);
+                if (eval.toLong() < bestEvalHere.toLong()) {
+                    bestEvalHere = eval;
+                    bestMoveHere = m;
+                }
                 if (eval.toLong() < beta.toLong()) beta = eval;
                 if (beta.toLong() <= alpha.toLong()) {
                     break;
                 }
             }
-            return minEval;
         }
+
+        // to be executed on the head / root pos (for this minimax search) only
+        if (isRoot) {
+            this.bestEval = bestEvalHere;
+            this.bestMove = bestMoveHere;
+        }
+
+        return bestEvalHere;
     }
 
     public void sendStopSignal() {
         this.stopSignal = true;
+    }
+
+    public Evaluation getBestEval() {
+        return this.bestEval;
+    }
+
+    public Move getBestMove() {
+        return this.bestMove;
     }
 }
