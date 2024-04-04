@@ -8,6 +8,7 @@ public class Board {
     private GameState gameState;
     private Colour sideToMove;
     private Coord enPassantTarget = new Coord(-1,-1);  // placeholder invalid coord
+    private Colour enPassantColour = Colour.None;
     private int halfmove;
     private int move;
     private HashMap<String, Integer> repetitionTable;
@@ -289,7 +290,6 @@ public class Board {
         return this.canCastle;
     }
 
-    // TODO: review necessity, this is currently unused
     public Colour getSideToMove() {
         return this.sideToMove;
     }

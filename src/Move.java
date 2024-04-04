@@ -73,6 +73,9 @@ public class Move {
             // set appropriate en passant square if this piece is a pawn moving 2 squares
             if (Math.abs(this.piece.getCoord().getY() - this.coord.getY()) == 2) {
                 board.setEnPassantSquare(new Coord(this.coord.getX(), this.coord.getY() - (this.piece.getColour() == Colour.White ? 1 : -1)));
+            } else {
+                // as above, if no en passant square would be created, make it out of bounds to represent no en passant square
+                board.setEnPassantSquare(new Coord(-1, -1));
             }
         }
 

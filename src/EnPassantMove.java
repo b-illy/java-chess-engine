@@ -21,7 +21,11 @@ public class EnPassantMove extends Move {
         Coord otherPawnCoord = new Coord(this.coord.getX(), this.coord.getY() + (this.piece.getColour() == Colour.White ? -1 : 1));
         // make sure that there is a pawn here
         if (board.pieceAt(otherPawnCoord).getType() != PieceType.pawn) {
-            throw new RuntimeException("Couldn't find a pawn on en passant square");
+            System.out.println("\n\nEN PASSANT ERROR!");
+            System.out.println("- Attempted to en passant square: " + this.coord);
+            System.out.println("- Pawn expected (but not found) at: " + otherPawnCoord);
+            System.out.println("\nBoard printout at time of error:\n\n" + this.piece.getBoard().toString() + "\n");
+            throw new RuntimeException("Couldn't find relevant pawn for en passant square");
         }
 
         // put this pawn on its new square
