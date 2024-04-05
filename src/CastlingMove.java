@@ -2,9 +2,6 @@ public class CastlingMove extends Move {
     public CastlingMove(Piece piece, boolean shortCastle) {
         super(piece, new Coord(piece.getCoord().getX() + (shortCastle ? 2 : -2), piece.getCoord().getY()));
         this.type = MoveType.castling;
-
-        // this class does not check that there is a clear path between the king and rook
-        // this responsibility instead lies on the class creating instances of this class
     }
 
     public Board simulate() {
@@ -20,9 +17,10 @@ public class CastlingMove extends Move {
             if (this.piece.getBoard().pieceAt(rookX, this.piece.getCoord().getY()).getType() == PieceType.rook) {
                 // a rook was found
                 rook = this.piece.getBoard().pieceAt(rookX, this.piece.getCoord().getY());
-                if (rook.getColour() != this.piece.getColour()) continue; // not the rook, keep looking
-                found = true;  // found it, mark this and stop looping
-                break;
+                if (rook.getColour() == this.piece.getColour()) {
+                    found = true;  // found it, mark this and stop looping
+                    break;
+                }
             }
 
             if (shortCastle) rookX++;

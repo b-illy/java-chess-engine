@@ -1,4 +1,4 @@
-import java.util.Date;
+import java.util.ArrayList;
 
 public class SearchThread extends Thread {
     // can be set to true to send a stop signal, as soon as thats detected we stop searching
@@ -7,8 +7,9 @@ public class SearchThread extends Thread {
     // time tracking variables - create goal search time, stop searching automatically when reached
     long myTimeLeftMs;
     long oppTimeLeftMs;
-    Date timeStarted;
+    long incrementMs;
     long goalTimeMs;
+    int goalDepth;
 
     Board rootPos;
 
@@ -16,11 +17,13 @@ public class SearchThread extends Thread {
     Evaluation eval;
     int maxDepthReached;
 
-    public SearchThread(Board rootPos, long myTimeLeftMs, long oppTimeLeftMs) {
+    public SearchThread(Board rootPos, long myTimeLeftMs, long oppTimeLeftMs, long incrementMs) {
         this.stopSignal = false;
         this.myTimeLeftMs = myTimeLeftMs;
         this.oppTimeLeftMs = oppTimeLeftMs;
+        this.incrementMs = incrementMs;
         this.goalTimeMs = -1;
+        this.goalDepth = -1;
         this.rootPos = rootPos;
         // note: for the time being, oppTimeLeftMs is ignored with the assumption that
         // this engine will only be playing other engines, which generally are not supposed
@@ -28,16 +31,23 @@ public class SearchThread extends Thread {
         // against humans, however, you would not want to ignore this, so it remains a stub.
     }
 
+    // search with fixed / precalculated goal time to take
     public SearchThread(Board rootPos, long goalTimeMs) {
         this.stopSignal = false;
         this.goalTimeMs = Math.max(0, goalTimeMs);
+        this.goalDepth = -1;
+        this.rootPos = rootPos;
+    }
+
+    // search with fixed depth goal
+    public SearchThread(Board rootPos, int goalDepth) {
+        this.stopSignal = false;
+        this.goalTimeMs = -1;
+        this.goalDepth = Math.max(0, goalDepth);
         this.rootPos = rootPos;
     }
 
     public void run() {
-        // date object used to keep track of how much time has elapsed
-        this.timeStarted = new Date();
-        
         // calculate a reasonable goal time if none is provided using time left and move count
         if (this.goalTimeMs < 0) {
             // take an educated (very approximate) guess at how many more moves we will have to make this game
@@ -47,8 +57,9 @@ public class SearchThread extends Thread {
             estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
             
             // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
-            this.goalTimeMs = myTimeLeftMs / estMovesLeft;
-            // TODO: detect if this game is being played with increment and account for that
+            // also account for increment if applicable
+            if (this.incrementMs > 0) this.goalTimeMs = (myTimeLeftMs + (estMovesLeft*this.incrementMs)/2) / estMovesLeft;
+            else this.goalTimeMs = myTimeLeftMs / estMovesLeft;
         }
 
         // setup parameters used to decide when to stop
@@ -56,21 +67,36 @@ public class SearchThread extends Thread {
         long passedTimeMs = 0;
         int idsDepth = 0;
 
-        // do iterative deepening search using underlying minimax function
-        while (idsDepth <= Constants.MAX_MINIMAX_DEPTH && !stopSignal) {
-            Date iterStartDate = new Date();
-            minimax(this.rootPos, idsDepth, this.rootPos.getSideToMove() == Colour.White);
-            lastIterTimeMs = (new Date()).getTime() - iterStartDate.getTime();
-            passedTimeMs += lastIterTimeMs;
+        this.maxDepthReached = 0;
 
-            // stop searching if we've taken longer than goal time or are too close to continue
-            if (passedTimeMs + 4*lastIterTimeMs >= this.goalTimeMs) {
-                stopSignal = true;
-                break;
+        if (this.goalDepth < 0) {
+            // do iterative deepening search using underlying minimax function
+            // decides when to stop going deeper based on goal time
+            while (idsDepth <= Constants.MAX_MINIMAX_DEPTH && !stopSignal) {
+                long iterStartTime = System.nanoTime();
+                minimax(this.rootPos, idsDepth, this.rootPos.getSideToMove() == Colour.White);
+                lastIterTimeMs = (System.nanoTime() - iterStartTime)/1000;
+                passedTimeMs += lastIterTimeMs;
+
+                // stop searching if we've taken longer than goal time or are too close to continue
+                if (passedTimeMs + 4*lastIterTimeMs >= this.goalTimeMs) {
+                    stopSignal = true;
+                    break;
+                }
+
+                this.maxDepthReached = idsDepth;
+                idsDepth++;
             }
+        } else {
+            // basic fixed depth approach (but still ids)
+            for (int i = 0; i <= this.goalDepth; i++) {
+                if (stopSignal) break;
+                minimax(this.rootPos, i, this.rootPos.getSideToMove() == Colour.White);
+                System.out.println("Completed search to depth " + i + "/" + this.goalDepth);
 
-            this.maxDepthReached = idsDepth;
-            idsDepth++;
+                this.maxDepthReached = i;
+            }
+            stopSignal = true;
         }
     }
 
@@ -81,15 +107,66 @@ public class SearchThread extends Thread {
         return minimax(pos, depth, true, max, new Evaluation(Colour.Black), new Evaluation(Colour.White));
     }
 
+    private Evaluation minimaxCaptures(Board pos, boolean max, Evaluation alpha, Evaluation beta) {
+        // System.out.println("MMC " + pos.getFEN());
+        Evaluation currentStaticEval = HeuristicEval.evaluate(pos);
+        Evaluation bestEvalHere = currentStaticEval;
+
+        // filter for only capturing moves
+        ArrayList<Move> moves = pos.getLegalMoves();
+        ArrayList<Move> capturingMoves = new ArrayList<Move>();
+        for (Move m : moves) {
+            if (m.getType() == MoveType.enPassant) {
+                capturingMoves.add(m);
+            } else if (pos.pieceAt(m.getCoord()).getType() != PieceType.empty && m.getType() != MoveType.castling) {
+                capturingMoves.add(m);
+            }
+        }
+
+        // no capturing moves to check, pos is 'quiet', just return this basic eval
+        if (capturingMoves.size() == 0) return bestEvalHere;
+
+        // System.out.println(capturingMoves.size() + " cap moves: " + capturingMoves.toString());
+
+        // there are some capturing moves here, check them all recursively until quiet pos found
+        if (max) {
+            for (Move m : capturingMoves) {
+                Evaluation eval = minimaxCaptures(m.simulate(), false, alpha, beta);
+
+                // if (eval.toLong() >= beta.toLong()) return beta;
+                if (eval.toLong() > bestEvalHere.toLong()) bestEvalHere = eval; // max
+                if (eval.toLong() > alpha.toLong()) alpha = eval;
+                if (beta.toLong() <= alpha.toLong()) break;
+            }
+        } else {
+            for (Move m : capturingMoves) {
+                Evaluation eval = minimaxCaptures(m.simulate(), true, alpha, beta);
+
+                // if (eval.toLong() <= alpha.toLong()) return alpha;
+                if (eval.toLong() < bestEvalHere.toLong()) bestEvalHere = eval; // min
+                if (eval.toLong() < beta.toLong()) beta = eval;
+                if (beta.toLong() <= alpha.toLong()) break;
+            }
+        }
+
+        return bestEvalHere;
+    }
+
     // main minimax function
     private Evaluation minimax(Board pos, int depth, boolean isRoot, boolean max, Evaluation alpha, Evaluation beta) {
+        // System.out.println("MM " + pos.getFEN());
         // do not keep searching if stop signal was detected, just return placeholder eval to get ignored
         if (stopSignal) {
             return max ? new Evaluation(Colour.Black) : new Evaluation(Colour.White);
         }
 
-        if (depth == 0 || pos.getGameState() != GameState.Ongoing) {
+        if (pos.getGameState() != GameState.Ongoing) {
             return HeuristicEval.evaluate(pos);
+        }
+
+        if (depth == 0) {
+            // return HeuristicEval.evaluate(pos);
+            return minimaxCaptures(pos, max, alpha, beta);
         }
 
         Evaluation bestEvalHere;

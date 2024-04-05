@@ -64,11 +64,12 @@ public class Piece {
                 // check for clear path between king and rook, add the move if available
 
                 // short / kingside castling
-                if (castling[this.colour == Colour.White ? 1 : 0][1]) {
+                if (castling[this.colour == Colour.White ? 1 : 0][0]) {
                     for (int x = this.coord.getX() + 1; x < 8; x++) {
-                        if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.empty) {
+                        if (this.board.pieceAt(x, this.coord.getY()).getType() == PieceType.empty) {
                             continue;
-                        } else if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.rook) {
+                        } else if (this.board.pieceAt(x, this.coord.getY()).getType() == PieceType.rook && 
+                                   this.board.pieceAt(x, this.coord.getY()).getColour() == this.colour) {
                             moves.add(new CastlingMove(this, true));
                         } else {
                             break;
@@ -79,9 +80,10 @@ public class Piece {
                 // long / queenside castling
                 if (castling[this.colour == Colour.White ? 1 : 0][1]) {
                     for (int x = this.coord.getX() - 1; x >= 0; x--) {
-                        if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.empty) {
+                        if (this.board.pieceAt(x, this.coord.getY()).getType() == PieceType.empty) {
                             continue;
-                        } else if (this.board.pieceAt(x, this.coord.getY()).type == PieceType.rook) {
+                        } else if (this.board.pieceAt(x, this.coord.getY()).getType() == PieceType.rook &&
+                                   this.board.pieceAt(x, this.coord.getY()).getColour() == this.colour) {
                             moves.add(new CastlingMove(this, false));
                         } else {
                             break;
@@ -283,13 +285,15 @@ public class Piece {
                     // movement rules for pawns are different for taking - can *only* take diagonally 1 square up each way
                     // taking up and towards left
                     if (this.coord.getX() != 0 &&
-                        this.board.pieceAt(new Coord(this.coord.getX()-1, this.coord.getY() + moveDirection)).getType() != PieceType.empty) {
+                        this.board.pieceAt(new Coord(this.coord.getX()-1, this.coord.getY() + moveDirection)).getType() != PieceType.empty &&
+                        this.board.pieceAt(new Coord(this.coord.getX()-1, this.coord.getY() + moveDirection)).getColour() != this.colour) {
                         moves.add(new Move(this, new Coord(this.coord.getX()-1, this.coord.getY() + moveDirection)));
                     }
     
                     // taking up and towards right
                     if (this.coord.getX() != 7 &&
-                        this.board.pieceAt(new Coord(this.coord.getX()+1, this.coord.getY() + moveDirection)).getType() != PieceType.empty) {
+                        this.board.pieceAt(new Coord(this.coord.getX()+1, this.coord.getY() + moveDirection)).getType() != PieceType.empty &&
+                        this.board.pieceAt(new Coord(this.coord.getX()+1, this.coord.getY() + moveDirection)).getColour() != this.colour) {
                         moves.add(new Move(this, new Coord(this.coord.getX()+1, this.coord.getY() + moveDirection)));
                     }
 
@@ -323,14 +327,21 @@ public class Piece {
         // start with list of candidate moves to review legality of
         ArrayList<Move> moves = this.getCandidateMoves();
 
-        
+
         // next we need to cull any moves that would result in the king remaining in check
         // but first, modifying the list while iterating could cause problems, make a list to remove later
         ArrayList<Move> removalList = new ArrayList<Move>();
 
         // simulate each move and see if any moves exist after that which could capture the king - flag for removal
         for (Move m1 : moves) {
-            Board newBoard = m1.simulate();
+            Board newBoard;
+            try {
+                newBoard = m1.simulate();
+            } catch (RuntimeException e) {
+                // probably means no rook found for castling, no pawn for en passant etc
+                removalList.add(m1);  // remove the move, most likely illegal
+                continue;
+            }
             Piece kingPiece = newBoard.getKing(this.colour);
             if (kingPiece.getType() != PieceType.king) {
                 // king not found - this shouldnt happen in valid positions
@@ -361,8 +372,31 @@ public class Piece {
             
             
             if (m1.getType() == MoveType.castling) {
-                // its illegal to castle 'through' check
-                // TODO
+                // its illegal to castle 'through' check or into/out of it
+                final Coord startPos = m1.getPiece().getCoord();
+                final Coord endPos = m1.getCoord();
+
+                int x = startPos.getX();
+                final int y = startPos.getY();
+
+                while (x <= 7 && x >= 0) {
+                    if (m1.getBoard().isSquareAttacked(new Coord(x, y), m1.getPiece().getColour() == Colour.White ? Colour.Black : Colour.White)) {
+                        // if any square checked here is attacked, castling would be impossible - remove this move
+                        removalList.add(m1);
+                        break;
+                    }
+
+                    if (startPos.getX() > endPos.getX()) { // short castle
+                        x--;
+                        if (x < endPos.getX()) break;
+                    } else if (startPos.getX() < endPos.getX()) { // long castle
+                        x++;
+                        if (x > endPos.getX()) break;
+                    } else {
+                        // castling onto the same x coord - this should never happen
+                        break;
+                    }
+                }
             }
         }
         

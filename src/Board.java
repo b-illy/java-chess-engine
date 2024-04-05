@@ -48,23 +48,22 @@ public class Board {
             boolean isInCheck = this.isSquareAttacked(this.getKing(this.sideToMove).getCoord(), this.sideToMove == Colour.White ? Colour.Black : Colour.White);
 
             if (isInCheck) {
-                this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
+                return this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
             } else {
-                this.gameState = GameState.Draw;
+                return this.gameState = GameState.Draw;
             }
-
-        } else if (this.repetitionTable.get(this.getStrippedFEN()) != null &&
-                   this.repetitionTable.get(this.getStrippedFEN()) >= 3) {
-            // if position has been repeated 3 times, draw by repetition
-            this.gameState = GameState.Draw;
         } else if (this.halfmove >= 100) {
             // if 50 moves have passed, draw by inactivity
-            this.gameState = GameState.Draw;
+            return this.gameState = GameState.Draw;
         } else {
-            this.gameState = GameState.Ongoing;
-        }
+            if (this.repetitionTable.get(this.getStrippedFEN()) != null) {
+                if (this.repetitionTable.get(this.getStrippedFEN()) >= 3) {
+                    return this.gameState = GameState.Ongoing;
+                }
+            }
 
-        return this.gameState;
+            return this.gameState = GameState.Ongoing;
+        }
     }
 
     public void print() {

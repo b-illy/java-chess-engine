@@ -1,9 +1,25 @@
 public class HeuristicEval {
+    // small helper function that queries the pst values, maps coords, and flips if necessary
+    private static final int getPstValue(int x, int y, int[][] table, boolean flip) {
+        // translate to this coordinate system, for details on how this works and why,
+        // see the comments relating to Board.pieceAt()
+        int i = 7-y;
+        int j = x;
+        if (flip) {
+            // rotate the coordinate 180 deg
+            i = 7-i;
+            j = 7-j;
+        }
+        
+        return table[i][j];
+    }
+
     public static Evaluation evaluate(Board position) {
         long centipawns = 0;
 
-        // STAGE 1: check for game over
+        // check for game over
         GameState state = position.getGameState();
+
         if (state == GameState.WhiteWon) {
             return new Evaluation(Colour.White);
         } else if (state == GameState.BlackWon) {
@@ -12,12 +28,14 @@ public class HeuristicEval {
             return new Evaluation(Colour.None);
         }
 
-        // STAGE 2: check for forced mate
+        // check for forced mate
         // TODO
 
+        
         long totalMaterialValue = 0;
         int numPiecesOnBoard = 0;
-        // STAGE 3: add up raw piece values based on constants
+        // add up raw piece values based on constants
+        // in this same loop, add piece-square table values
         for (int i = 0; i < 8; i ++) {
             for (int j = 0; j < 8; j++) {
                 Piece p = position.pieceAt(i, j);
@@ -46,7 +64,7 @@ public class HeuristicEval {
                     case king: case empty: default:
                         break;
                 }
-                
+                    
                 totalMaterialValue += value; // track total amt of material on the board
                 if (p.getColour() == Colour.White) {
                     centipawns += value;
@@ -55,6 +73,54 @@ public class HeuristicEval {
                 }
             }
         }
+        
+
+        // deduce which phase of the game we are in
+        int gamePhase = 0; // early=0, mid=1, late=2
+        if (position.getMoveNumber() > 15 || totalMaterialValue < 50 || numPiecesOnBoard < 20) gamePhase = 1;
+        if (totalMaterialValue < 30 || numPiecesOnBoard < 10) gamePhase = 2;
+
+
+        // add piece-square table values
+        // (functions very similarly to above loop)
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece p = position.pieceAt(i, j);
+                long value = 0;
+                switch(p.getType()) {
+                    case pawn:
+                        value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_PAWN, p.getColour()==Colour.Black);
+                        break;
+                    case knight:
+                        value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_KNIGHT, p.getColour()==Colour.Black);
+                        break;
+                    case bishop:
+                        value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_BISHOP, p.getColour()==Colour.Black);
+                        break;
+                    case rook:
+                        value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_ROOK, p.getColour()==Colour.Black);
+                        break;
+                    case queen:
+                        value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_QUEEN, p.getColour()==Colour.Black);
+                        break;
+                    case king: 
+                        if (gamePhase == 1 || gamePhase == 2) {
+                            value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_KING_EARLY, p.getColour()==Colour.Black);
+                        } else if (gamePhase == 3) {
+                            value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_KING_LATE, p.getColour()==Colour.Black);
+                        }
+                        break;
+                    case empty: default:
+                        break;
+                }
+                if (p.getColour() == Colour.White) {
+                    centipawns += value;
+                } else if (p.getColour() == Colour.Black) {
+                    centipawns -= value;
+                }
+            }
+        }
+
 
         // check for doubled (or more) pawns
         int doubledPawns[] = new int[16];  // first 8 represent white, last 8 black
@@ -79,12 +145,14 @@ public class HeuristicEval {
             doubledPawns[j+8] = pawnsBlackHere;
         }
 
+
         // apply penalties for doubled (or more) pawns
         for (int i = 0; i < 16; i++) {
             long penalties = (long)(Math.pow(Math.max(0, doubledPawns[i]-1), 1.2));
 
             centipawns += Constants.EVAL_DOUBLED_PAWN_PENALTY * penalties * (i>7 ? -1 : 1);
         }
+
 
         // apply bonuses for number of unique squares 'controlled'
         // get all candidate moves for all pieces of both sides
@@ -94,58 +162,24 @@ public class HeuristicEval {
 
         //     }
         // }
-
-
-        // give bonus for each pawn moved off starting rank
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                Piece p = position.pieceAt(i, j);
-                if (p.getType() == PieceType.pawn) {
-                    int distFromMid = (int)Math.floor(Math.abs(3.5 - p.getCoord().getX())); // 0-3
-                    long scaledBonus = (long)(Constants.EVAL_DOUBLED_PAWN_PENALTY * (1 - distFromMid*0.2));
-                    if (p.getColour() == Colour.White && p.getCoord().getY() != 2) {
-                        centipawns += scaledBonus;
-                    }
-                    if (p.getColour() == Colour.White && p.getCoord().getY() != 2) {
-                        centipawns -= scaledBonus;
-                    }
-                }
-            }
-        }
-
-
-        // apply bonuses for number of legal moves
-        // create new board which is equal but with opponent to move to get opponents potential legal moves
-        Board oppMovePosition = new Board(position.getFEN());
-        oppMovePosition.setEnPassantSquare(new Coord(-1, -1));
-        oppMovePosition.incMoveCount();
-
-        long currLegalMoveCount = position.getLegalMoveCount();
-        long oppLegalMoveCount = oppMovePosition.getLegalMoveCount();
-        long moveCountDiff = (currLegalMoveCount - oppLegalMoveCount) * (position.getSideToMove() == Colour.White ? 1 : -1);
-        boolean moveCountInc = moveCountDiff >= 0;
-        if (moveCountDiff >= 3) centipawns += (moveCountInc ? 1 : -1) * Math.max(Math.pow(Math.abs(moveCountDiff) * 0.02, 0.5), 50);
         
 
         // increase magnitude of eval based on number of pieces
         final int startPosPieceCount = 30;
         double pieceCountRatio = (double)Math.min(startPosPieceCount, numPiecesOnBoard) / (double)startPosPieceCount;
-        centipawns /= Math.max(pieceCountRatio,0.4);
+        centipawns /= Math.max(pieceCountRatio,0.5);
         
+
         // increase magnitude of eval based on total value of all pieces
         // (2 pawns in endgame are much more significant than 2 pawns in the opening)
         final long startPosMaterialValue = 4*Constants.VALUE_ROOK+4*Constants.VALUE_KNIGHT+4*Constants.VALUE_BISHOP+2*Constants.VALUE_QUEEN+16*Constants.VALUE_PAWN;
         double materialValueRatio = (double)Math.min(startPosMaterialValue, totalMaterialValue) / (double)startPosMaterialValue;
-        centipawns /= Math.max(materialValueRatio,0.2);
+        centipawns /= Math.max(materialValueRatio,0.3);
         
-        // increase magnitude of eval based on move count
-        if (position.getMoveNumber() > Constants.EVAL_HIGH_MOVE_COUNT) {
-            centipawns *= 1 + Math.min(0.5, (position.getMoveNumber()-20)*0.01);
-        }
 
         // drop magnitude of eval if halfmove count is getting too high
         if (position.getHalfMoveNumber() > Constants.EVAL_HIGH_HALFMOVE_COUNT) {
-            centipawns *= 1 - Math.min(0.5, position.getHalfMoveNumber());
+            centipawns *= 1 - Math.min(0.5, 0.03*(Constants.EVAL_HIGH_HALFMOVE_COUNT-position.getHalfMoveNumber()));
         }
 
         return new Evaluation(centipawns);
