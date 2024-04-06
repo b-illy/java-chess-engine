@@ -6,6 +6,9 @@ public class Board {
     
     private Piece[][] tiles = new Piece[8][8];
     private GameState gameState;
+    private int gameStateLastUpdate;
+    private ArrayList<Move> legalMoves;
+    private int legalMovesLastUpdate;
     private Colour sideToMove;
     private Coord enPassantTarget = new Coord(-1,-1);  // placeholder invalid coord
     private int halfmove;
@@ -30,6 +33,9 @@ public class Board {
         this.repetitionTable = new HashMap<String, Integer>();
         // naively assume game is ongoing -- can't call getGameState here or infinite loop
         this.gameState = GameState.Ongoing;
+
+        this.gameStateLastUpdate = -1;
+        this.legalMovesLastUpdate = -1;
     }
     
     // constructor for creating board with default position (starting position)
@@ -39,6 +45,14 @@ public class Board {
 
     // updates game state and then returns it
     public GameState getGameState() {
+        // return 'cached' value if position hasnt changed
+        int currentTurn = 2*this.move + (this.sideToMove == Colour.Black ? 1 : 0);
+        if (currentTurn != this.gameStateLastUpdate || this.gameState == null) {
+            this.gameStateLastUpdate = currentTurn;
+        } else {
+            return this.gameState;
+        }
+
         // no legal moves, game is over
         if (this.getLegalMoveCount() == 0) {
             // its stalemate if king not in check, checkmate otherwise
@@ -422,20 +436,18 @@ public class Board {
     }
 
     public long getLegalMoveCount() {
-        long count = 0;
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                // filter for pieces of appropriate colour based on turn
-                if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == this.sideToMove) {
-                    count += this.pieceAt(i, j).getLegalMoves().size();
-                }
-            }
-        }
-
-        return count;
+        return this.getLegalMoves().size();
     }
 
     public ArrayList<Move> getLegalMoves() {
+        // return 'cached' value if position hasnt changed
+        int currentTurn = 2*this.move + (this.sideToMove == Colour.Black ? 1 : 0);
+        if (currentTurn != this.legalMovesLastUpdate || this.legalMoves == null) {
+            this.legalMovesLastUpdate = currentTurn;
+        } else {
+            return this.legalMoves;
+        }
+
         ArrayList<Move> legalMoves = new ArrayList<Move>();
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {

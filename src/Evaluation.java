@@ -88,4 +88,27 @@ public class Evaluation {
                 return "";
         }
     }
+
+    // used in search function to 'bring up a level' e.g. 1-0 -> +M1, +M5 -> +M6
+    public Evaluation tick() {
+        if (this.isForcedCheckmate) {
+            // increment moves until forced checkmate
+            this.movesToForcedCheckmate++;
+        } else if (this.isGameOver) {
+            // draw should just return +0.0
+            if (winningColour == Colour.None) {
+                this.centipawnsMagnitude = 0;
+                this.whiteIsBetter = true;
+                this.isGameOver = false;
+            }
+
+            // change eval to mate in 1 equivalent
+            this.isForcedCheckmate = true;
+            this.movesToForcedCheckmate = 1;
+            this.whiteIsBetter = (this.winningColour == Colour.White);
+            this.isGameOver = false;
+        }
+
+        return this;
+    }
 }

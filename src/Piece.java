@@ -276,7 +276,8 @@ public class Piece {
                     // first-move 2 square forward move
                     if (this.coord.getY() == (moveDirection == 1 ? 1 : 6)) { // detect if this is first move by rank
                         // check if square 2 tiles above is empty + add if so
-                        if (this.board.pieceAt(new Coord(this.coord.getX(), this.coord.getY() + 2*moveDirection)).getType() == PieceType.empty) {
+                        if (this.board.pieceAt(new Coord(this.coord.getX(), this.coord.getY() + 2*moveDirection)).getType() == PieceType.empty &&
+                            this.board.pieceAt(new Coord(this.coord.getX(), this.coord.getY() + 1*moveDirection)).getType() == PieceType.empty) {
                             moves.add(new Move(this, new Coord(this.coord.getX(), this.coord.getY() + 2*moveDirection)));
                         }
                     }

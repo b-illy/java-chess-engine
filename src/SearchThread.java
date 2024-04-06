@@ -108,7 +108,6 @@ public class SearchThread extends Thread {
     }
 
     private Evaluation minimaxCaptures(Board pos, boolean max, Evaluation alpha, Evaluation beta) {
-        // System.out.println("MMC " + pos.getFEN());
         Evaluation currentStaticEval = HeuristicEval.evaluate(pos);
         Evaluation bestEvalHere = currentStaticEval;
 
@@ -126,7 +125,8 @@ public class SearchThread extends Thread {
         // no capturing moves to check, pos is 'quiet', just return this basic eval
         if (capturingMoves.size() == 0) return bestEvalHere;
 
-        // System.out.println(capturingMoves.size() + " cap moves: " + capturingMoves.toString());
+        // order moves in a more optimal way
+        capturingMoves = MoveOrdering.reorder(capturingMoves);
 
         // there are some capturing moves here, check them all recursively until quiet pos found
         if (max) {
@@ -149,12 +149,11 @@ public class SearchThread extends Thread {
             }
         }
 
-        return bestEvalHere;
+        return bestEvalHere.tick();
     }
 
     // main minimax function
     private Evaluation minimax(Board pos, int depth, boolean isRoot, boolean max, Evaluation alpha, Evaluation beta) {
-        // System.out.println("MM " + pos.getFEN());
         // do not keep searching if stop signal was detected, just return placeholder eval to get ignored
         if (stopSignal) {
             return max ? new Evaluation(Colour.Black) : new Evaluation(Colour.White);
@@ -165,16 +164,19 @@ public class SearchThread extends Thread {
         }
 
         if (depth == 0) {
-            // return HeuristicEval.evaluate(pos);
             return minimaxCaptures(pos, max, alpha, beta);
         }
+        
+        ArrayList<Move> legalMoves = pos.getLegalMoves();
+        // order moves in a more optimal way
+        legalMoves = MoveOrdering.reorder(legalMoves);
 
         Evaluation bestEvalHere;
-        Move bestMoveHere = null;
+        Move bestMoveHere = legalMoves.get(0);
 
         if (max) {
             bestEvalHere = new Evaluation(Colour.Black); // track maximum
-            for (Move m : pos.getLegalMoves()) {
+            for (Move m : legalMoves) {
                 Evaluation eval = minimax(m.simulate(), depth-1, false, false, alpha, beta);
                 if (eval.toLong() > bestEvalHere.toLong()) {
                     bestEvalHere = eval;
@@ -187,7 +189,7 @@ public class SearchThread extends Thread {
             }
         } else {
             bestEvalHere = new Evaluation(Colour.White); // track minimum
-            for (Move m : pos.getLegalMoves()) {
+            for (Move m : legalMoves) {
                 Evaluation eval = minimax(m.simulate(), depth-1, false, true, alpha, beta);
                 if (eval.toLong() < bestEvalHere.toLong()) {
                     bestEvalHere = eval;
@@ -199,6 +201,9 @@ public class SearchThread extends Thread {
                 }
             }
         }
+
+        // if the best position after next move is 1-0, this is +M1, if +M1 then +M2 etc
+        bestEvalHere.tick();
 
         // to be executed on the head / root pos (for this minimax search) only
         if (isRoot) {

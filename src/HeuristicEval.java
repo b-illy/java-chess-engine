@@ -1,4 +1,6 @@
 public class HeuristicEval {
+    // private static int totalPositionsEvaluated = 0;
+
     // small helper function that queries the pst values, maps coords, and flips if necessary
     private static final int getPstValue(int x, int y, int[][] table, boolean flip) {
         // translate to this coordinate system, for details on how this works and why,
@@ -15,6 +17,8 @@ public class HeuristicEval {
     }
 
     public static Evaluation evaluate(Board position) {
+        // HeuristicEval.totalPositionsEvaluated++;
+        // if (HeuristicEval.totalPositionsEvaluated % 10000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
         long centipawns = 0;
 
         // check for game over
@@ -28,14 +32,10 @@ public class HeuristicEval {
             return new Evaluation(Colour.None);
         }
 
-        // check for forced mate
-        // TODO
-
         
+        // add up raw piece values based on constants
         long totalMaterialValue = 0;
         int numPiecesOnBoard = 0;
-        // add up raw piece values based on constants
-        // in this same loop, add piece-square table values
         for (int i = 0; i < 8; i ++) {
             for (int j = 0; j < 8; j++) {
                 Piece p = position.pieceAt(i, j);
@@ -104,9 +104,9 @@ public class HeuristicEval {
                         value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_QUEEN, p.getColour()==Colour.Black);
                         break;
                     case king: 
-                        if (gamePhase == 1 || gamePhase == 2) {
+                        if (gamePhase == 0 || gamePhase == 1) {
                             value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_KING_EARLY, p.getColour()==Colour.Black);
-                        } else if (gamePhase == 3) {
+                        } else if (gamePhase == 2) {
                             value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_KING_LATE, p.getColour()==Colour.Black);
                         }
                         break;
@@ -145,18 +145,16 @@ public class HeuristicEval {
             doubledPawns[j+8] = pawnsBlackHere;
         }
 
-
+        
         // apply penalties for doubled (or more) pawns
         for (int i = 0; i < 16; i++) {
             long penalties = (long)(Math.pow(Math.max(0, doubledPawns[i]-1), 1.2));
-
-            centipawns += Constants.EVAL_DOUBLED_PAWN_PENALTY * penalties * (i>7 ? -1 : 1);
+            centipawns -= Constants.EVAL_DOUBLED_PAWN_PENALTY * penalties * (i>7 ? -1 : 1);
         }
 
 
         // apply bonuses for number of unique squares 'controlled'
-        // get all candidate moves for all pieces of both sides
-        // TODO
+        // TODO - but this will probably be tracked separately eventually
         // for (int i = 0; i < 8; i++) {
         //     for (int j = 0; j < 8; j++) {
 

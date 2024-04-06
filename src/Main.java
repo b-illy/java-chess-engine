@@ -1,5 +1,3 @@
-import java.util.Date;
-
 public class Main {
     private final static boolean testMode = true;
     public static void main(String[] args) throws InterruptedException {
@@ -8,8 +6,8 @@ public class Main {
             System.out.println("--> Testing FEN loading and printing");
             Board testBoard = new Board();
 
-            System.out.println("\nDefault board");
-            testBoard.print();
+            // System.out.println("\nDefault board");
+            // testBoard.print();
 
             // String[] testFENs = {
             //     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // normal start pos
@@ -84,26 +82,25 @@ public class Main {
             //     }
             // }
 
-            testBoard.loadFEN(); // load default position
-            // get legal moves benchmark
-            long nanoTime1 = System.nanoTime();
-            // testBoard.getLegalMoves();
-            Piece kingPiece = testBoard.getKing(Colour.White);
-            kingPiece.getCandidateMoves();
-            kingPiece.getLegalMoves();
-            System.out.println("\n\nBenchmark: " + (System.nanoTime() - nanoTime1)/1000 + "ms");
-
+            
             // play a game against itself
             System.out.println("\n\n--> Attempting to play a game against self\n");
+            testBoard.loadFEN(); // load default position
+
             while (testBoard.getGameState() == GameState.Ongoing) {
-                Date startDate = new Date();
+                long startTime = System.nanoTime();
+
+                // spawn new SearchThread with fixed depth of 3
                 SearchThread st = new SearchThread(testBoard, (int)3);
                 st.start();
                 st.join();
                 st.getBestMove().make();
+
+                // print board and some info
+                System.out.println("");
                 testBoard.print();
                 System.out.println("Eval: " + st.getEval());
-                System.out.println("Time taken (ms): " + ((new Date()).getTime() - startDate.getTime()));
+                System.out.println("Time taken (ms): " + ((System.nanoTime() - startTime)/1000));
                 System.out.println("Max depth: " + st.getMaxDepthReached());
                 System.out.println("Move: " + st.getBestMove() + " (move no. " + testBoard.getMoveNumber() + ")");
                 System.out.println("");
