@@ -449,16 +449,21 @@ public class Board {
         }
 
         ArrayList<Move> legalMoves = new ArrayList<Move>();
+        // iterate over all pieces
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 // filter for pieces of appropriate colour based on turn
                 if (this.pieceAt(i, j).getType() != PieceType.empty && this.pieceAt(i, j).getColour() == this.sideToMove) {
+                    // add all of this piece's legal moves to the legal moves for the board
                     legalMoves.addAll(this.pieceAt(i, j).getLegalMoves());
                 }
             }
         }
 
-        return legalMoves;
+        // a temporary variable is written to above and then copied here to maximise atomicity and prevent any race conditions
+        this.legalMoves = legalMoves;
+
+        return this.legalMoves;
     }
 
     public int getMoveNumber() {
