@@ -1,5 +1,5 @@
 public class HeuristicEval {
-    // private static int totalPositionsEvaluated = 0;
+    private static int totalPositionsEvaluated = 0;
 
     // small helper function that queries the pst values, maps coords, and flips if necessary
     private static final int getPstValue(int x, int y, int[][] table, boolean flip) {
@@ -17,8 +17,8 @@ public class HeuristicEval {
     }
 
     public static Evaluation evaluate(Board position) {
-        // HeuristicEval.totalPositionsEvaluated++;
-        // if (HeuristicEval.totalPositionsEvaluated % 10000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
+        HeuristicEval.totalPositionsEvaluated++;
+        if (HeuristicEval.totalPositionsEvaluated % 100000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
         long centipawns = 0;
 
         // check for game over
@@ -39,7 +39,7 @@ public class HeuristicEval {
         for (int i = 0; i < 8; i ++) {
             for (int j = 0; j < 8; j++) {
                 Piece p = position.pieceAt(i, j);
-                double value = 0;
+                int value = 0;
                 switch(p.getType()) {
                     case pawn:
                         value = Constants.VALUE_PAWN;
@@ -86,7 +86,7 @@ public class HeuristicEval {
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 Piece p = position.pieceAt(i, j);
-                long value = 0;
+                int value = 0;
                 switch(p.getType()) {
                     case pawn:
                         value = HeuristicEval.getPstValue(p.getCoord().getX(), p.getCoord().getY(), Constants.PST_PAWN, p.getColour()==Colour.Black);

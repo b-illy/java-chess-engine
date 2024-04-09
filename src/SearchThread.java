@@ -75,7 +75,7 @@ public class SearchThread extends Thread {
             while (idsDepth <= Constants.MAX_MINIMAX_DEPTH && !stopSignal) {
                 long iterStartTime = System.nanoTime();
                 minimax(this.rootPos, idsDepth, this.rootPos.getSideToMove() == Colour.White);
-                lastIterTimeMs = (System.nanoTime() - iterStartTime)/1000;
+                lastIterTimeMs = (System.nanoTime() - iterStartTime)/1000000;
                 passedTimeMs += lastIterTimeMs;
 
                 // stop searching if we've taken longer than goal time or are too close to continue
@@ -108,9 +108,17 @@ public class SearchThread extends Thread {
     }
 
     private Evaluation minimaxCaptures(Board pos, boolean max, Evaluation alpha, Evaluation beta) {
-        Evaluation currentStaticEval = HeuristicEval.evaluate(pos);
-        Evaluation bestEvalHere = currentStaticEval;
-
+        final Evaluation currentStaticEval = HeuristicEval.evaluate(pos);
+        
+        // update pruning params with static eval
+        if (max) {
+            if (currentStaticEval.toLong() >= beta.toLong()) return beta;
+            if (currentStaticEval.toLong() >= alpha.toLong()) alpha = currentStaticEval;
+        } else {
+            if (currentStaticEval.toLong() <= alpha.toLong()) return alpha;
+            if (currentStaticEval.toLong() <= beta.toLong()) beta = currentStaticEval;
+        }
+        
         // filter for only capturing moves
         ArrayList<Move> moves = pos.getLegalMoves();
         ArrayList<Move> capturingMoves = new ArrayList<Move>();
@@ -121,19 +129,21 @@ public class SearchThread extends Thread {
                 capturingMoves.add(m);
             }
         }
-
+        
         // no capturing moves to check, pos is 'quiet', just return this basic eval
-        if (capturingMoves.size() == 0) return bestEvalHere;
-
+        if (capturingMoves.size() == 0) return currentStaticEval;
+        
         // order moves in a more optimal way
         capturingMoves = MoveOrdering.reorder(capturingMoves);
+
+        Evaluation bestEvalHere = currentStaticEval;
 
         // there are some capturing moves here, check them all recursively until quiet pos found
         if (max) {
             for (Move m : capturingMoves) {
                 Evaluation eval = minimaxCaptures(m.simulate(), false, alpha, beta);
 
-                // if (eval.toLong() >= beta.toLong()) return beta;
+                if (eval.toLong() >= beta.toLong()) return beta;
                 if (eval.toLong() > bestEvalHere.toLong()) bestEvalHere = eval; // max
                 if (eval.toLong() > alpha.toLong()) alpha = eval;
                 if (beta.toLong() <= alpha.toLong()) break;
@@ -142,7 +152,7 @@ public class SearchThread extends Thread {
             for (Move m : capturingMoves) {
                 Evaluation eval = minimaxCaptures(m.simulate(), true, alpha, beta);
 
-                // if (eval.toLong() <= alpha.toLong()) return alpha;
+                if (eval.toLong() <= alpha.toLong()) return alpha;
                 if (eval.toLong() < bestEvalHere.toLong()) bestEvalHere = eval; // min
                 if (eval.toLong() < beta.toLong()) beta = eval;
                 if (beta.toLong() <= alpha.toLong()) break;

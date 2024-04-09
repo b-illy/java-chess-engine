@@ -14,6 +14,7 @@ public class Move {
 
     // update underlying board with new position after this move
     public void make() {
+        this.piece.getBoard().addMoveHistory(this);
         this.piece.getBoard().loadFEN(this.simulate().getFEN());
     }
 

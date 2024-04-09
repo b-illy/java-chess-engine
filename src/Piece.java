@@ -350,27 +350,10 @@ public class Piece {
                 return new ArrayList<Move>();
             }
 
-            // for each piece in the new position...
-            for (int i = 0; i < 8; i++) {
-                for (int j = 0; j < 8; j++) {
-                    if (newBoard.pieceAt(i, j).getType() == PieceType.empty) {
-                        continue;  // ignore squares without pieces
-                    } else {
-                        // check each candidate move for this piece and see if it could move to the king's square
-                        ArrayList<Move> newBoardMoves = newBoard.pieceAt(i, j).getCandidateMoves();
-
-                        for (Move m2 : newBoardMoves) {
-                            if (m2.getCoord().equals(kingPiece.getCoord())) {
-                                // this move would move onto the square of the king
-                                // remove the move that originally led to this from list of candidate moves
-                                removalList.add(m1);
-                                break;  // no need to keep looking
-                            }
-                        }
-                    }
-                }
+            // remove this move if we would still be in check on next move
+            if (newBoard.isSquareAttacked(kingPiece.getCoord(), (this.colour == Colour.White ? Colour.Black : Colour.White))) {
+                removalList.add(m1);
             }
-            
             
             if (m1.getType() == MoveType.castling) {
                 // its illegal to castle 'through' check or into/out of it

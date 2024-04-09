@@ -11,7 +11,6 @@ public class Constants {
 
     public static final int EVAL_HIGH_HALFMOVE_COUNT = 30;
     public static final int EVAL_DOUBLED_PAWN_PENALTY = 20;
-    public static final int EVAL_PAWN_MOVED_BONUS = 20;
 
 
     // piece-square tables for evaluation

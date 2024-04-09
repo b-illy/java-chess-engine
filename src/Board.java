@@ -11,6 +11,7 @@ public class Board {
     private int legalMovesLastUpdate;
     private Colour sideToMove;
     private Coord enPassantTarget = new Coord(-1,-1);  // placeholder invalid coord
+    private ArrayList<Move> moveHistory;
     private int halfmove;
     private int move;
     private HashMap<String, Integer> repetitionTable;
@@ -36,11 +37,17 @@ public class Board {
 
         this.gameStateLastUpdate = -1;
         this.legalMovesLastUpdate = -1;
+
+        this.moveHistory = new ArrayList<Move>();
     }
     
     // constructor for creating board with default position (starting position)
     public Board() {
         this(Board.startFEN);
+    }
+
+    public boolean isCheck() {
+        return this.isSquareAttacked(this.getKing(this.sideToMove).getCoord(), (this.sideToMove==Colour.White ? Colour.Black : Colour.White));
     }
 
     // updates game state and then returns it
@@ -59,9 +66,7 @@ public class Board {
             // therefore we need to check if the king is in check right now
 
             // search for opponents next moves to see if any could capture the king
-            boolean isInCheck = this.isSquareAttacked(this.getKing(this.sideToMove).getCoord(), this.sideToMove == Colour.White ? Colour.Black : Colour.White);
-
-            if (isInCheck) {
+            if (this.isCheck()) {
                 return this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
             } else {
                 return this.gameState = GameState.Draw;
@@ -341,7 +346,9 @@ public class Board {
         // finalY = x
     }
 
-    public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
+    // TODO: remove old deprecated version of this function
+    // only to be used for detection of checks, not intended for showing only fully legal moves
+    public boolean isSquareAttackedOLD(Coord atCoord, Colour byColour) {
         Board newBoard = new Board(this.getFEN());  // create temporary clone board
         newBoard.incMoveCount();  // let the opponent move
 
@@ -357,6 +364,98 @@ public class Board {
                             return true;
                         }
                     }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
+        if (byColour == Colour.None) return false; // method should only be called with byColour White or Black
+
+        // seperate handling of pawn moves
+        final int moveDirection = (byColour == Colour.White ? 1 : -1);
+        final Coord[] pawnCoords = {new Coord(atCoord.getX()+1, atCoord.getY()-moveDirection),
+                                    new Coord(atCoord.getX()-1, atCoord.getY()-moveDirection)};
+        for (Coord c : pawnCoords) {
+            if (!c.isInBounds()) continue;
+            Piece p = this.pieceAt(c);
+            if (p.getColour() != byColour) continue;
+            if (p.getType() == PieceType.pawn) return true;
+        }
+
+        // seperate handling of knight moves
+
+        // (this comment copied from Piece.getCandidateMoves())
+        // there are 8 possible moves that a knight can make:
+        // -2 -1, -2 +1, +2 -1, +2 +1, -1 -2, -1 +2, +1 -2, +1 +2
+        // all of these can be represented in another way by using 3 booleans:
+        // most significant direction (x/y), x is positive (t/f), y is positive (t/f)
+        // these can be handled iteratively in a similar way to rook moves but with an extra bool
+        for (int sigX = 0; sigX < 2; sigX++) {
+            for (int posX = 0; posX < 2; posX ++) {
+                for (int posY = 0; posY < 2; posY++) {
+                    // calculate the amount that should be moved in each direction on this move (see above)
+                    int xMovement = -1;
+                    int yMovement = -1;
+                    if (posX != 0) xMovement = 1;
+                    if (posY != 0) yMovement = 1;
+                    if (sigX != 0) xMovement *= 2;
+                    else yMovement *= 2;
+
+                    // add this change to current coord and add if move is legal
+                    Coord c = new Coord(atCoord.getX()+xMovement, atCoord.getY()+yMovement);
+                    if (!c.isInBounds()) continue;
+                    if (this.pieceAt(c).getType() == PieceType.knight && this.pieceAt(c).getColour() == byColour) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // iterate over each possible direction a piece can move in
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                if (i == 0 && j == 0) continue;  // cant move to the same square
+                
+                final int cX = atCoord.getX();
+                final int cY = atCoord.getY();
+                Coord c = new Coord(cX + i, cY + j);
+
+                if (!c.isInBounds()) continue;
+                Piece p = this.pieceAt(c);
+
+                // firstly, check for king (range of only 1 square)
+                if (p.getColour() == byColour && p.getType() == PieceType.king) return true;
+
+                for (int multiplyingFactor = 1; multiplyingFactor < 8; multiplyingFactor++) {
+                    // setup coordinate and piece for this iteration
+                    c = new Coord(cX + (i*multiplyingFactor), cY + (j*multiplyingFactor));
+                    if (!c.isInBounds()) break;
+                    p = this.pieceAt(c);
+
+                    // skip over empty squares
+                    if (p.getType() == PieceType.empty) continue;
+
+                    // check for friendly blocking pieces
+                    if (p.getColour() != byColour) break;
+                    
+                    if (p.getType() == PieceType.queen) return true;
+
+                    // check for non-sliding blocking pieces
+                    if (p.getType() != PieceType.bishop && p.getType() != PieceType.rook) break;
+
+                    if (i != 0 && j != 0) {
+                        // diagonal movement (bishop)
+                        if (p.getType() == PieceType.bishop) return true;
+                    } else {
+                        // horizontal/vertical movement (rook)
+                        if (p.getType() == PieceType.rook) return true;
+                    }
+
+                    // if no check was found and square isnt empty, this piece will block the rest
+                    break;
                 }
             }
         }
@@ -464,6 +563,14 @@ public class Board {
         this.legalMoves = legalMoves;
 
         return this.legalMoves;
+    }
+
+    public void addMoveHistory(Move m) {
+        this.moveHistory.add(m);
+    }
+
+    public ArrayList<Move> getMoveHistory() {
+        return this.moveHistory;
     }
 
     public int getMoveNumber() {
