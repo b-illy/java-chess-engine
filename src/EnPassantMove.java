@@ -1,6 +1,7 @@
 public class EnPassantMove extends Move {
     public EnPassantMove(Piece piece, Coord coord) {
         super(piece, coord);
+        this.type = MoveType.enPassant;
 
         if (piece.getType() != PieceType.pawn) {
             // only pawns can take en passant - throw error if this condition is not met

@@ -2,7 +2,7 @@ public class Main {
     // configure which tests are to be run here
     private final static boolean testMode = true;
     private final static boolean testFENLoading = false;
-    private final static boolean testMoveMaking = false;
+    private final static boolean testMoveMaking = true;
     private final static boolean testPositionCounts = false;
     private final static boolean testPlaySelf = true;
 
@@ -102,6 +102,24 @@ public class Main {
                         move1.make();
                         testBoard.print();
                     }
+                }
+
+                System.out.print("\n--> Testing move parsing\n");
+
+                // move parsing test (in given position)
+                String[][] testMovesParsing = {
+                    {"8/7P/2k5/8/8/2K5/8/8 w - - 0 1", "h7h8q"},
+                    {"8/7P/2k5/8/8/2K5/8/8 w - - 0 1", "h7h8r"},
+                    {"8/7P/2k5/8/8/2K5/8/8 w - - 0 1", "h7h8b"},
+                    {"8/7P/2k5/8/8/2K5/8/8 w - - 0 1", "h7h8n"}
+                };
+
+                for (int i = 0; i < testMovesParsing.length; i++) {
+                    System.out.print("Testing move parsing, test #" + (i+1) + ": " );
+                    testBoard = new Board(testMovesParsing[i][0]);
+                    Move m = MoveFactory.fromLongAlgebraicStr(testMovesParsing[i][1], testBoard);
+                    System.out.print(m + ", type: " + m.getType() + ", promotype: " + m.getPromoType());
+                    System.out.print("\n");
                 }
             }
 

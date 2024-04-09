@@ -1,13 +1,14 @@
 public class PromotionMove extends Move {
     private PieceType promoPieceType;
 
-    public PromotionMove(Piece piece, Coord coord, PieceType type) {
+    public PromotionMove(Piece piece, Coord coord, PieceType promoType) {
         super(piece, coord);
+        this.type = MoveType.promotion;
 
         final PieceType[] promotionTypes = {PieceType.queen, PieceType.rook, PieceType.bishop, PieceType.knight};
         boolean found = false;
         for (PieceType t : promotionTypes) {
-            if (type == t) {
+            if (promoType == t) {
                 found = true;
                 break;
             }
@@ -17,7 +18,7 @@ public class PromotionMove extends Move {
             throw new ExceptionInInitializerError("PieceType given in constructor is not valid for promotion");
         }
 
-        this.promoPieceType = type;
+        this.promoPieceType = promoType;
     }
 
     public Board simulate() {

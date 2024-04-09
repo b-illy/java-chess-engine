@@ -1,5 +1,3 @@
-import java.util.Arrays;
-
 public class Move {
     protected Piece piece;
     protected Board board;
@@ -114,12 +112,25 @@ public class Move {
         return this.type;
     }
 
+    // long algebraic form: 1st coord + 2nd coord + piece type initial if promoting
     public String toString() {
+        if (this.type != MoveType.promotion) {
+            return this.piece.getCoord().toString().concat(this.coord.toString());
+        }
+
+        // if promoting, check for promotion type
         final char[] promotionChars = {'q', 'r', 'b', 'n'};
-        final PieceType[] promotionTypes = {PieceType.queen, PieceType.rook, PieceType.bishop, PieceType.knight};   
-        // long algebraic form, 1st coord + 2nd coord + piece type if promoting
-        return this.piece.getCoord().toString().concat(this.coord.toString())
-        + (this.type == MoveType.promotion ? promotionChars[Arrays.asList(promotionTypes).indexOf(this.getPromoType())] : "");
+        final PieceType[] promotionTypes = {PieceType.queen, PieceType.rook, PieceType.bishop, PieceType.knight};
+        String promotionSuffix = "";
+
+        for (int i = 0; i < promotionTypes.length; i++) {
+            if (this.getPromoType() == promotionTypes[i]) {
+                promotionSuffix += promotionChars[i];
+                break;
+            }
+        }
+
+        return this.piece.getCoord().toString().concat(this.coord.toString()) + promotionSuffix;
     }
 
     public boolean equals(Move move2) {
