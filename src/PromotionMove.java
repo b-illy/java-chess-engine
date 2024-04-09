@@ -22,7 +22,8 @@ public class PromotionMove extends Move {
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board(this.piece.getBoard().getFEN());
+        Board board = new Board();
+        board.load(this.piece.getBoard());
         
         // put appropriate piece on its new square
         board.pieceAt(this.coord).overwrite(new Piece(this.piece.getColour(), this.promoPieceType, this.coord, board));
@@ -39,6 +40,11 @@ public class PromotionMove extends Move {
 
         // return the new modified copy of the board
         board.incMoveCount();
+        board.addMoveHistory(this);
         return board;
+    }
+
+    public PieceType getPromoType() {
+        return this.promoPieceType;
     }
 }

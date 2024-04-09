@@ -30,15 +30,16 @@ public class Board {
             }
         }
 
-        // init empty repetition table
+        // init empty repetition table and move history arraylist
         this.repetitionTable = new HashMap<String, Integer>();
+        this.moveHistory = new ArrayList<Move>();
+
         // naively assume game is ongoing -- can't call getGameState here or infinite loop
         this.gameState = GameState.Ongoing;
 
+        //
         this.gameStateLastUpdate = -1;
         this.legalMovesLastUpdate = -1;
-
-        this.moveHistory = new ArrayList<Move>();
     }
     
     // constructor for creating board with default position (starting position)
@@ -346,31 +347,7 @@ public class Board {
         // finalY = x
     }
 
-    // TODO: remove old deprecated version of this function
     // only to be used for detection of checks, not intended for showing only fully legal moves
-    public boolean isSquareAttackedOLD(Coord atCoord, Colour byColour) {
-        Board newBoard = new Board(this.getFEN());  // create temporary clone board
-        newBoard.incMoveCount();  // let the opponent move
-
-        for (int i = 0; i < 8; i++) {
-            for (int j = 0; j < 8; j++) {
-                if (newBoard.pieceAt(i, j).getType() == PieceType.empty || newBoard.pieceAt(i, j).getColour() != byColour) {
-                    continue;  // ignore squares without pieces and our own pieces
-                } else {
-                    // check each candidate move for this piece and see if it could move to the king's square
-                    for (Move m : newBoard.pieceAt(i, j).getCandidateMoves()) {
-                        if (m.getCoord().equals(atCoord)) {
-                            // this move would move onto this square
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
     public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
         if (byColour == Colour.None) return false; // method should only be called with byColour White or Black
 
@@ -488,7 +465,7 @@ public class Board {
         // returns a placeholder empty piece. any code calling this function should
         // seperately check that the piece type returned is actually a king and handle
         // that scenario independently - no errors are actually thrown.
-        return new Piece(colour, PieceType.empty, new Coord(-1, -1), this);
+        return new Piece(Colour.None, PieceType.empty, new Coord(-1, -1), this);
     }
 
     // simple check used to check if en passant is possible on a given square
@@ -579,5 +556,23 @@ public class Board {
 
     public int getHalfMoveNumber() {
         return this.halfmove;
+    }
+
+    public HashMap<String, Integer> getRepetitionTable() {
+        return this.repetitionTable;
+    }
+
+    public void load(Board b) {
+        // copy position itself
+        this.loadFEN(b.getFEN());
+        
+        // copy over move history
+        this.moveHistory = b.getMoveHistory();
+
+        // copy over repetition table
+        this.repetitionTable = b.getRepetitionTable();
+
+        this.gameStateLastUpdate = -1;
+        this.legalMovesLastUpdate = -1;
     }
 }

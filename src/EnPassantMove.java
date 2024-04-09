@@ -15,7 +15,8 @@ public class EnPassantMove extends Move {
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board(this.piece.getBoard().getFEN());
+        Board board = new Board();
+        board.load(this.piece.getBoard());
         
         // find where the pawn which is being taken en passant is located
         Coord otherPawnCoord = new Coord(this.coord.getX(), this.coord.getY() + (this.piece.getColour() == Colour.White ? -1 : 1));
@@ -45,6 +46,7 @@ public class EnPassantMove extends Move {
 
         // return the new modified copy of the board
         board.incMoveCount();
+        board.addMoveHistory(this);
         return board;
     }
 }

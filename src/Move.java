@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 public class Move {
     protected Piece piece;
     protected Board board;
@@ -14,13 +16,13 @@ public class Move {
 
     // update underlying board with new position after this move
     public void make() {
-        this.piece.getBoard().addMoveHistory(this);
-        this.piece.getBoard().loadFEN(this.simulate().getFEN());
+        this.piece.getBoard().load(this.simulate());
     }
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board(this.piece.getBoard().getFEN());
+        Board board = new Board();
+        board.load(this.piece.getBoard());
 
         // reset halfmove clock for 50 move rule if applicable
         // pawn move
@@ -81,6 +83,7 @@ public class Move {
         }
 
         board.incMoveCount();
+        board.addMoveHistory(this);
         return board;
     }
 
@@ -111,9 +114,11 @@ public class Move {
     }
 
     public String toString() {
-        // very basic notation, just 1st coord + 2nd coord (diff from long algebraic)
-        // TODO: make this give long algebraic, handling promotions
-        return this.piece.getCoord().toString().concat(this.coord.toString());
+        final char[] promotionChars = {'q', 'r', 'b', 'n'};
+        final PieceType[] promotionTypes = {PieceType.queen, PieceType.rook, PieceType.bishop, PieceType.knight};   
+        // long algebraic form, 1st coord + 2nd coord + piece type if promoting
+        return this.piece.getCoord().toString().concat(this.coord.toString())
+        + (this.type == MoveType.promotion ? promotionChars[Arrays.asList(promotionTypes).indexOf(this.getPromoType())] : "");
     }
 
     public boolean equals(Move move2) {
@@ -123,5 +128,10 @@ public class Move {
                 this.coord.equals(move2.getCoord()) &&
                 this.type == move2.getType()
                 );
+    }
+
+    public PieceType getPromoType() {
+        // stub impl. for method to be overwritten by PromotionMove
+        return PieceType.empty;
     }
 }

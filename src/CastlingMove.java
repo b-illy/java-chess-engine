@@ -6,7 +6,8 @@ public class CastlingMove extends Move {
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board(this.piece.getBoard().getFEN());
+        Board board = new Board();
+        board.load(this.piece.getBoard());
 
         // find corresponding rook
         Piece rook = null;
@@ -50,6 +51,7 @@ public class CastlingMove extends Move {
 
         // return the new modified copy of the board
         board.incMoveCount();
+        board.addMoveHistory(this);
         return board;
     }
 }

@@ -31,7 +31,7 @@ public class MoveFactory {
                     return new PromotionMove(piece, coord2, pieceTypeArr["qrbn".indexOf(pieceTypeChar)]);
                 } else {
                     // last character was not one of the valid possibilities - error
-                    // TODO: handle error!
+                    throw new ExceptionInInitializerError("promotion piece type not recognised");
                 }
             }
 
