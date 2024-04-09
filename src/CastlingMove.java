@@ -6,8 +6,8 @@ public class CastlingMove extends Move {
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board();
-        board.load(this.piece.getBoard());
+        Board newBoard = new Board();
+        newBoard.load(this.board);
 
         // find corresponding rook
         Piece rook = null;
@@ -33,25 +33,25 @@ public class CastlingMove extends Move {
         }
 
         // put corresponding rook on its new square
-        board.pieceAt(this.piece.getCoord().getX() + (shortCastle ? 1 : -1), this.coord.getY()).overwrite(rook);
+        newBoard.pieceAt(this.piece.getCoord().getX() + (shortCastle ? 1 : -1), this.coord.getY()).overwrite(rook);
         // remove rook from previous square
-        board.pieceAt(rook.getCoord()).setEmpty();
+        newBoard.pieceAt(rook.getCoord()).setEmpty();
 
         // put king on its new square
-        board.pieceAt(this.coord).overwrite(this.piece);
+        newBoard.pieceAt(this.coord).overwrite(this.piece);
         // remove king from previous square
-        board.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
 
         // remove all castling for this side
-        board.removeCastling(this.piece.getColour(), 0);
-        board.removeCastling(this.piece.getColour(), 1);
+        newBoard.removeCastling(this.piece.getColour(), 0);
+        newBoard.removeCastling(this.piece.getColour(), 1);
 
         // update en passant target (make it out of bounds to represent no en passant square)
-        board.setEnPassantSquare(new Coord(-1, -1));
+        newBoard.setEnPassantSquare(new Coord(-1, -1));
 
         // return the new modified copy of the board
-        board.incMoveCount();
-        board.addMoveHistory(this);
-        return board;
+        newBoard.incMoveCount();
+        newBoard.addMoveHistory(this);
+        return newBoard;
     }
 }

@@ -22,26 +22,26 @@ public class PromotionMove extends Move {
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board();
-        board.load(this.piece.getBoard());
+        Board newBoard = new Board();
+        newBoard.load(this.board);
         
         // put appropriate piece on its new square
-        board.pieceAt(this.coord).overwrite(new Piece(this.piece.getColour(), this.promoPieceType, this.coord, board));
+        newBoard.pieceAt(this.coord).overwrite(new Piece(this.piece.getColour(), this.promoPieceType, this.coord, newBoard));
         // remove the now old duplicate on our piece's original square
-        board.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
 
         // (dont need to update castling possibilities on these types of moves, move on)
 
         // update en passant target (make it out of bounds to represent no en passant square)
-        board.setEnPassantSquare(new Coord(-1, -1));
+        newBoard.setEnPassantSquare(new Coord(-1, -1));
 
         // reset halfmove clock for 50 move rule (this is a pawn move)
-        board.resetHalfMoveCount();
+        newBoard.resetHalfMoveCount();
 
         // return the new modified copy of the board
-        board.incMoveCount();
-        board.addMoveHistory(this);
-        return board;
+        newBoard.incMoveCount();
+        newBoard.addMoveHistory(this);
+        return newBoard;
     }
 
     public PieceType getPromoType() {

@@ -16,44 +16,45 @@ public class Move {
 
     // update underlying board with new position after this move
     public void make() {
-        this.piece.getBoard().load(this.simulate());
+        this.board.load(this.simulate());
+
     }
 
     public Board simulate() {
         // make a copy of the board
-        Board board = new Board();
-        board.load(this.piece.getBoard());
+        Board newBoard = new Board();
+        newBoard.load(this.board);
 
         // reset halfmove clock for 50 move rule if applicable
         // pawn move
-        if (this.piece.getType() == PieceType.pawn) board.resetHalfMoveCount();
+        if (this.piece.getType() == PieceType.pawn) newBoard.resetHalfMoveCount();
         // capture
-        if (board.pieceAt(this.coord).getType() != PieceType.empty) board.resetHalfMoveCount();
+        if (newBoard.pieceAt(this.coord).getType() != PieceType.empty) newBoard.resetHalfMoveCount();
 
         // overwrite the piece being taken, creating a copy
-        board.pieceAt(this.coord).overwrite(this.piece);
+        newBoard.pieceAt(this.coord).overwrite(this.piece);
         // remove the now old duplicate on our piece's original square
-        board.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
 
 
         // update castling possibilities
 
         // 2-size array representing castling oppurtunities for the colour of the piece of this move
         // 0=short, 1=long e.g. [true, false] means short is possible but not long
-        boolean[] myColourCastle = this.board.getCastlingPossibilities()[this.piece.getColour() == Colour.White ? 1 : 0];
+        boolean[] myColourCastle = newBoard.getCastlingPossibilities()[this.piece.getColour() == Colour.White ? 1 : 0];
         // if any type of castling is possible for this side...
         if (myColourCastle[0] || myColourCastle[1]) {
             // any king move makes any type of castling impossible
             if (this.piece.getType() == PieceType.king) {
                 // make both castling types impossible
-                board.removeCastling(this.piece.getColour(), 0);
-                board.removeCastling(this.piece.getColour(), 1);
+                newBoard.removeCastling(this.piece.getColour(), 0);
+                newBoard.removeCastling(this.piece.getColour(), 1);
             } else if (this.piece.getType() == PieceType.rook) {
                 // make castling in the direction of this rook impossible
 
                 // detect whether this rook would be used to castle short or long by x coords
                 int castleType = 0;  // 0=long, 1=short
-                if (this.piece.getCoord().getX() > this.board.getKing(this.piece.getColour()).getCoord().getX()) {
+                if (this.piece.getCoord().getX() > newBoard.getKing(this.piece.getColour()).getCoord().getX()) {
                     // rook has higher x coord than king
                     if (this.piece.getColour() == Colour.White) castleType = 0;  // white, long
                     else castleType = 1;  // black, short
@@ -64,27 +65,27 @@ public class Move {
                 }
 
                 // now actually remove castling possibility for this type of castling
-                board.removeCastling(this.piece.getColour(), castleType);
+                newBoard.removeCastling(this.piece.getColour(), castleType);
             }
         }
 
         // update en passant target
         if (this.piece.getType() != PieceType.pawn) {
             // if no en passant square would be created, make it out of bounds to represent no en passant square
-            board.setEnPassantSquare(new Coord(-1, -1));
+            newBoard.setEnPassantSquare(new Coord(-1, -1));
         } else {
             // set appropriate en passant square if this piece is a pawn moving 2 squares
             if (Math.abs(this.piece.getCoord().getY() - this.coord.getY()) == 2) {
-                board.setEnPassantSquare(new Coord(this.coord.getX(), this.coord.getY() - (this.piece.getColour() == Colour.White ? 1 : -1)));
+                newBoard.setEnPassantSquare(new Coord(this.coord.getX(), this.coord.getY() - (this.piece.getColour() == Colour.White ? 1 : -1)));
             } else {
                 // as above, if no en passant square would be created, make it out of bounds to represent no en passant square
-                board.setEnPassantSquare(new Coord(-1, -1));
+                newBoard.setEnPassantSquare(new Coord(-1, -1));
             }
         }
 
-        board.incMoveCount();
-        board.addMoveHistory(this);
-        return board;
+        newBoard.incMoveCount();
+        newBoard.addMoveHistory(this);
+        return newBoard;
     }
 
     public boolean isLegal() {

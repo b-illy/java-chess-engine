@@ -130,14 +130,27 @@ public class Main {
                 // play a game against itself
                 System.out.println("\n\n--> Attempting to play a game against self\n");
 
+                final long gameTimePerSideMs = 60000;
+                final int incrementMs = 000;
+
+                long[] timeUsedMs = {0,0};
+
                 while (testBoard.getGameState() == GameState.Ongoing) {
                     long startTime = System.nanoTime();
 
+                    // track time usage per side
+                    int index = 0;
+                    if (testBoard.getSideToMove() == Colour.Black) index = 1;
+
                     // spawn new SearchThread with fixed depth
-                    SearchThread st = new SearchThread(testBoard, (int)4);
+                    // SearchThread st = new SearchThread(testBoard, (int)4);
+                    SearchThread st = new SearchThread(testBoard, gameTimePerSideMs - timeUsedMs[index], 0, incrementMs);
                     st.start();
                     st.join();
                     st.getBestMove().make();
+
+                    timeUsedMs[index] += (System.nanoTime() - startTime)/1000000;
+                    timeUsedMs[index] -= incrementMs;
 
                     // print board and some info
                     System.out.println("");
@@ -146,14 +159,29 @@ public class Main {
                     System.out.println("Time taken (ms): " + ((System.nanoTime() - startTime)/1000000));
                     System.out.println("Max depth: " + st.getMaxDepthReached());
                     System.out.println("Move: " + st.getBestMove() + " (move no. " + testBoard.getMoveNumber() + ")");
+                    System.out.println("Time left (ms): " + (gameTimePerSideMs - timeUsedMs[0]) + ", " + (gameTimePerSideMs - timeUsedMs[1]));
                     System.out.println("");
                 }
 
                 // game now complete
                 System.out.println("\nGame over. Move history:");
+                int printingMoveNum = 1;
+                boolean whiteMove = true;
                 for (Move m : testBoard.getMoveHistory()) {
-                    if (m.getBoard().getSideToMove() == Colour.White) System.out.print(m.getBoard().getMoveNumber() + ". ");
-                    System.out.print(m + " ");
+                    if (whiteMove) {
+                        System.out.print(printingMoveNum + ". ");
+                    }
+
+                    System.out.print(m);
+
+                    if (!whiteMove) {
+                        System.out.print("\n");
+                        printingMoveNum++;
+                    } else {
+                        System.out.print(" ");
+                    }
+
+                    whiteMove = !whiteMove;
                 }
             }
         }

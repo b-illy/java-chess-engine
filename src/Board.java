@@ -61,29 +61,27 @@ public class Board {
             return this.gameState;
         }
 
-        // no legal moves, game is over
-        if (this.getLegalMoveCount() == 0) {
+        if (this.halfmove >= 100) {
+            // if 50 moves have passed, draw by inactivity
+            this.gameState = GameState.Draw;
+        } else if (this.repetitionTable.get(this.getStrippedFEN()) != null && this.repetitionTable.get(this.getStrippedFEN()) >= 3) {
+            // 3 (or more) occurances of this position during this game, draw by repetition
+            this.gameState = GameState.Draw;
+        } else if (this.getLegalMoveCount() == 0) {
+            // no legal moves, game is over
             // its stalemate if king not in check, checkmate otherwise
             // therefore we need to check if the king is in check right now
-
-            // search for opponents next moves to see if any could capture the king
             if (this.isCheck()) {
-                return this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
+                this.gameState = (this.sideToMove == Colour.White ? GameState.BlackWon : GameState.WhiteWon);
             } else {
-                return this.gameState = GameState.Draw;
+                this.gameState = GameState.Draw;
             }
-        } else if (this.halfmove >= 100) {
-            // if 50 moves have passed, draw by inactivity
-            return this.gameState = GameState.Draw;
         } else {
-            if (this.repetitionTable.get(this.getStrippedFEN()) != null) {
-                if (this.repetitionTable.get(this.getStrippedFEN()) >= 3) {
-                    return this.gameState = GameState.Ongoing;
-                }
-            }
-
-            return this.gameState = GameState.Ongoing;
+            // no game end conditions seem to be met, game should be ongoing
+            this.gameState = GameState.Ongoing;
         }
+
+        return this.gameState;
     }
 
     public void print() {
@@ -567,10 +565,16 @@ public class Board {
         this.loadFEN(b.getFEN());
         
         // copy over move history
-        this.moveHistory = b.getMoveHistory();
+        this.moveHistory = new ArrayList<Move>();
+        for (Move m : b.getMoveHistory()) {
+            this.moveHistory.add(m);
+        }
 
         // copy over repetition table
-        this.repetitionTable = b.getRepetitionTable();
+        this.repetitionTable = new HashMap<String, Integer>();
+        for (String s : b.getRepetitionTable().keySet()) {
+            this.repetitionTable.put(s, b.getRepetitionTable().get(s));
+        }
 
         this.gameStateLastUpdate = -1;
         this.legalMovesLastUpdate = -1;

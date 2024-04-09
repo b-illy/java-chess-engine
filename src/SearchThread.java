@@ -48,6 +48,11 @@ public class SearchThread extends Thread {
     }
 
     public void run() {
+        // give placeholder best move if possible (first legal move found)
+        if (this.rootPos.getLegalMoveCount() != 0) this.bestMove = this.rootPos.getLegalMoves().get(0);
+        // give placeholder eval (equal)
+        this.eval = new Evaluation(0);
+
         // calculate a reasonable goal time if none is provided using time left and move count
         if (this.goalTimeMs < 0) {
             // take an educated (very approximate) guess at how many more moves we will have to make this game
