@@ -5,4 +5,4 @@
 - `make run`: same as `make build`, but `out.jar` is executed immediately after compiling.
 - `make clean`: removes any extraneous files associated with compiliation.
 
-Right now, there is no working implementation of the UCI protocol. Once this is added (soon) the functionality when running `out.jar` will change. For the time being, `Main.java`/`Main.class` is the entrypoint, which executes a set of tests - you can modify this easily to configure which tests are ran.
+To configure functionality of running the engine via `out.jar`, you will need to modify some constant variables in `Main.java`. If `testmode` is set, the program will run some of its own various tests (you can further configure which tests run exactly using aforementioned variables). Otherwise, the engine will function in UCI mode - this mode allows it to be used by 3rd party external programs, such as a chess GUI, which will handle the sending and receiving of data using commands. An executable archive compiled in UCI mode is not intended to be used by humans, therefore using it in a non-automated fashion may be confusing.
