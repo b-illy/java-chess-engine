@@ -1,0 +1,5 @@
+uci
+ucinewgame
+isready
+position fen r2q1rk1/1ppbnp1p/2n1p1p1/p2p4/P2P4/2NBPN2/1PP2PPP/R2Q1RK1 b - - 1 10
+go wtime 300000 btime 300000

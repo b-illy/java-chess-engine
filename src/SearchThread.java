@@ -4,77 +4,115 @@ public class SearchThread extends Thread {
     // can be set to true to send a stop signal, as soon as thats detected we stop searching
     boolean stopSignal;
 
-    // time tracking variables - create goal search time, stop searching automatically when reached
-    long myTimeLeftMs;
-    long oppTimeLeftMs;
-    long incrementMs;
-    long goalTimeMs;
-    int goalDepth;
+    // 0=normal, 1=depth, 2=nodes, 3=movetime, 4=infinite
+    short mode;
 
+    // ambigious purpose variable used according to mode
+    long value;
+
+    // time
+    long wtime;
+    long btime;
+    long winc;
+    long binc;
+
+    // position to start search tree from
     Board rootPos;
 
     Move bestMove;
     Evaluation eval;
     int maxDepthReached;
 
-    public SearchThread(Board rootPos, long myTimeLeftMs, long oppTimeLeftMs, long incrementMs) {
+
+    // normal mode
+    public SearchThread(Board rootPos, long wtime, long btime, long winc, long binc) {
         this.stopSignal = false;
-        this.myTimeLeftMs = myTimeLeftMs;
-        this.oppTimeLeftMs = oppTimeLeftMs;
-        this.incrementMs = incrementMs;
-        this.goalTimeMs = -1;
-        this.goalDepth = -1;
         this.rootPos = rootPos;
-        // note: for the time being, oppTimeLeftMs is ignored with the assumption that
-        // this engine will only be playing other engines, which generally are not supposed
-        // to think on their opponents time. in adapting this engine for better performance
-        // against humans, however, you would not want to ignore this, so it remains a stub.
+        this.mode = 0;
+
+        this.wtime = wtime;
+        this.btime = btime;
+        this.winc = winc;
+        this.binc = binc;
     }
 
-    // search with fixed / precalculated goal time to take
-    public SearchThread(Board rootPos, long goalTimeMs) {
+    public SearchThread(Board rootPos, long value, short submode) {
         this.stopSignal = false;
-        this.goalTimeMs = Math.max(0, goalTimeMs);
-        this.goalDepth = -1;
         this.rootPos = rootPos;
+        this.value = Math.max(0, value);
+
+        switch(submode) {
+            case 0:
+                // search with fixed depth goal
+                this.mode = 1;
+                break;
+            case 1:
+                // search with fixed node count goal
+                this.mode = 2;
+                break;
+            case 2:
+                // search with fixed / precalculated goal time to take
+                this.mode = 3;
+                break;
+                
+            default:
+                throw new ExceptionInInitializerError("unrecognised search thread mode");
+        }
     }
 
-    // search with fixed depth goal
-    public SearchThread(Board rootPos, int goalDepth) {
+    // infinite search
+    public SearchThread(Board rootPos) {
         this.stopSignal = false;
-        this.goalTimeMs = -1;
-        this.goalDepth = Math.max(0, goalDepth);
         this.rootPos = rootPos;
+        this.mode = 4;
     }
 
     public void run() {
-        // give placeholder best move if possible (first legal move found)
+        // set some placeholder values before real ones calculated
         if (this.rootPos.getLegalMoveCount() != 0) this.bestMove = this.rootPos.getLegalMoves().get(0);
-        // give placeholder eval (equal)
         this.eval = new Evaluation(0);
-
-        // calculate a reasonable goal time if none is provided using time left and move count
-        if (this.goalTimeMs < 0) {
-            // take an educated (very approximate) guess at how many more moves we will have to make this game
-            // to be safe, this guess is quite conservative i.e. most likely bigger than it needs to be
-            int estMovesLeft = 50;
-            if (this.rootPos.getMoveNumber() > 30) estMovesLeft -= (this.rootPos.getMoveNumber() - 30) / 2;
-            estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
-            
-            // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
-            // also account for increment if applicable
-            if (this.incrementMs > 0) this.goalTimeMs = (myTimeLeftMs + (estMovesLeft*this.incrementMs)/2) / estMovesLeft;
-            else this.goalTimeMs = myTimeLeftMs / estMovesLeft;
-        }
-
-        // setup parameters used to decide when to stop
-        long lastIterTimeMs = 0;
-        long passedTimeMs = 0;
-        int idsDepth = 0;
-
         this.maxDepthReached = 0;
 
-        if (this.goalDepth < 0) {
+
+        // handle time-based stuff if in one of the relevant modes
+        if (mode == 0 || mode == 3) {
+            long myTimeMs;
+            long myIncMs;
+            long goalTimeMs = 0;
+
+            // calculate a reasonable goal time using time left and move count if in mode0(normal)
+            if (mode == 0) {
+                // figure out which time and increment are our's
+                if (this.rootPos.getSideToMove() == Colour.White) {
+                    myTimeMs = wtime;
+                    myIncMs = winc;
+                } else {
+                    myTimeMs = btime;
+                    myIncMs = binc;
+                }
+
+                // take an educated (very approximate) guess at how many more moves we will have to make this game
+                // to be safe, this guess is quite conservative i.e. most likely bigger than it needs to be
+                int estMovesLeft = 50;
+                if (this.rootPos.getMoveNumber() > 30) estMovesLeft -= (this.rootPos.getMoveNumber() - 30) / 2;
+                estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
+                
+                // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
+                // also account for increment if applicable
+                if (myIncMs > 0) goalTimeMs = (myTimeMs + (estMovesLeft * myIncMs)/2) / estMovesLeft;
+                else goalTimeMs = myTimeMs / estMovesLeft;
+            }
+
+            // set goaltime if in mode3(goaltime)
+            if (mode == 3) {
+                goalTimeMs = value;
+            }
+
+            // setup parameters used to decide when to stop
+            long lastIterTimeMs = 0;
+            long passedTimeMs = 0;
+            int idsDepth = 0;
+
             // do iterative deepening search using underlying minimax function
             // decides when to stop going deeper based on goal time
             while (idsDepth <= Constants.MAX_MINIMAX_DEPTH && !stopSignal) {
@@ -84,7 +122,7 @@ public class SearchThread extends Thread {
                 passedTimeMs += lastIterTimeMs;
 
                 // stop searching if we've taken longer than goal time or are too close to continue
-                if (passedTimeMs + 4*lastIterTimeMs >= this.goalTimeMs) {
+                if (passedTimeMs + 4*lastIterTimeMs >= goalTimeMs) {
                     stopSignal = true;
                     break;
                 }
@@ -92,17 +130,30 @@ public class SearchThread extends Thread {
                 this.maxDepthReached = idsDepth;
                 idsDepth++;
             }
-        } else {
+        }
+        
+        if (mode == 1 || mode == 4) { // fixed depth mode OR infinite search mode
+            long goalDepth = this.value;
+            if (mode == 4) goalDepth = Long.MAX_VALUE;
+
             // basic fixed depth approach (but still ids)
-            for (int i = 0; i <= this.goalDepth; i++) {
+            for (int i = 0; i <= goalDepth; i++) {
                 if (stopSignal) break;
                 minimax(this.rootPos, i, this.rootPos.getSideToMove() == Colour.White);
-                System.out.println("Completed search to depth " + i + "/" + this.goalDepth);
+                // System.out.println("Completed search to depth " + i + "/" + goalDepth);
 
                 this.maxDepthReached = i;
             }
-            stopSignal = true;
         }
+
+        if (mode == 2) { // fixed node count mode
+            // TODO
+        }
+
+
+        // if the bottom of this method is reached, everything is finished.
+        // set the stop signal just to make this clear
+        stopSignal = true;
     }
 
     // minimax reference: https://www.youtube.com/watch?v=l-hh51ncgDI
@@ -137,7 +188,7 @@ public class SearchThread extends Thread {
         
         // no capturing moves to check, pos is 'quiet', just return this basic eval
         if (capturingMoves.size() == 0) return currentStaticEval;
-        
+
         // order moves in a more optimal way
         capturingMoves = MoveOrdering.reorder(capturingMoves);
 

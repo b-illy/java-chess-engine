@@ -1,6 +1,6 @@
 public class Main {
     // configure which tests are to be run here
-    private final static boolean testMode = true;
+    private final static boolean testMode = false;
     private final static boolean testFENLoading = false;
     private final static boolean testMoveMaking = true;
     private final static boolean testPositionCounts = false;
@@ -54,7 +54,7 @@ public class Main {
 
                         // evaluation testing
                         long startTime = System.nanoTime();
-                        SearchThread st = new SearchThread(testBoard, (long)1000);
+                        SearchThread st = new SearchThread(testBoard, 0, (short)0);
                         st.start();
                         try {
                             st.join();
@@ -162,7 +162,7 @@ public class Main {
 
                     // spawn new SearchThread with fixed depth
                     // SearchThread st = new SearchThread(testBoard, (int)4);
-                    SearchThread st = new SearchThread(testBoard, gameTimePerSideMs - timeUsedMs[index], 0, incrementMs);
+                    SearchThread st = new SearchThread(testBoard, gameTimePerSideMs - timeUsedMs[index], 0, incrementMs, incrementMs);
                     st.start();
                     st.join();
                     st.getBestMove().make();
@@ -202,6 +202,12 @@ public class Main {
                     whiteMove = !whiteMove;
                 }
             }
+        } else {
+            // test mode off, run in uci mode
+
+            UCIThread uci = new UCIThread();
+            uci.start();
+            uci.join();
         }
     }
 }
