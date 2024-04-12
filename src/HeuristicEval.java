@@ -18,7 +18,7 @@ public class HeuristicEval {
 
     public static Evaluation evaluate(Board position) {
         HeuristicEval.totalPositionsEvaluated++;
-        // if (HeuristicEval.totalPositionsEvaluated % 100000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
+        if (Main.testMode && HeuristicEval.totalPositionsEvaluated % 10000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
         long centipawns = 0;
 
         // check for game over

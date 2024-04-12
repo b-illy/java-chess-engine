@@ -1,10 +1,10 @@
 public class Main {
     // configure which tests are to be run here
-    private final static boolean testMode = false;
+    public final static boolean testMode = true;
     private final static boolean testFENLoading = false;
-    private final static boolean testMoveMaking = true;
-    private final static boolean testPositionCounts = false;
-    private final static boolean testPlaySelf = true;
+    private final static boolean testMoveMaking = false;
+    private final static boolean testPositionCounts = true;
+    private final static boolean testPlaySelf = false;
 
     private final static long countPositions(int depth, Board pos) {
         if (depth == 0) return 1;
@@ -21,6 +21,13 @@ public class Main {
         if (testMode) {
             System.out.println("--> NOTICE: Test mode ACTIVE");
             Board testBoard = new Board();
+
+            for (int i = 0; i < 8; i++) {
+                for (int j = 0; j < 8; j++) {
+                    Piece p = testBoard.pieceAt(i, j);
+                    System.out.println(new Coord(i,j) + ": " + p.getColour() + " " + p.getType());
+                }
+            }
 
             if (testFENLoading) {
                 System.out.println("--> Testing FEN loading and printing");
@@ -162,7 +169,7 @@ public class Main {
 
                     // spawn new SearchThread with fixed depth
                     // SearchThread st = new SearchThread(testBoard, (int)4);
-                    SearchThread st = new SearchThread(testBoard, gameTimePerSideMs - timeUsedMs[index], 0, incrementMs, incrementMs);
+                    SearchThread st = new SearchThread(testBoard, gameTimePerSideMs-timeUsedMs[0], gameTimePerSideMs-timeUsedMs[1], incrementMs, incrementMs);
                     st.start();
                     st.join();
                     st.getBestMove().make();
@@ -177,7 +184,7 @@ public class Main {
                     System.out.println("Time taken (ms): " + ((System.nanoTime() - startTime)/1000000));
                     System.out.println("Max depth: " + st.getMaxDepthReached());
                     System.out.println("Move: " + st.getBestMove() + " (move no. " + testBoard.getMoveNumber() + ")");
-                    System.out.println("Time left (ms): " + (gameTimePerSideMs - timeUsedMs[0]) + ", " + (gameTimePerSideMs - timeUsedMs[1]));
+                    System.out.println("Time left (ms): " + (gameTimePerSideMs-timeUsedMs[0]) + ", " + (gameTimePerSideMs-timeUsedMs[1]));
                     System.out.println("");
                 }
 

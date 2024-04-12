@@ -27,9 +27,9 @@ public class PromotionMove extends Move {
         newBoard.load(this.board);
         
         // put appropriate piece on its new square
-        newBoard.pieceAt(this.coord).overwrite(new Piece(this.piece.getColour(), this.promoPieceType, this.coord, newBoard));
+        newBoard.setPieceAt(this.coord, new Piece(this.piece.getColour(), this.promoPieceType, this.coord, newBoard));
         // remove the now old duplicate on our piece's original square
-        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.removePieceAt(this.piece.getCoord());        
 
         // (dont need to update castling possibilities on these types of moves, move on)
 

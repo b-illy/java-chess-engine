@@ -30,9 +30,9 @@ public class Move {
         if (newBoard.pieceAt(this.coord).getType() != PieceType.empty) newBoard.resetHalfMoveCount();
 
         // overwrite the piece being taken, creating a copy
-        newBoard.pieceAt(this.coord).overwrite(this.piece);
+        newBoard.setPieceAt(this.coord, this.piece);
         // remove the now old duplicate on our piece's original square
-        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.removePieceAt(this.piece.getCoord());
 
 
         // update castling possibilities

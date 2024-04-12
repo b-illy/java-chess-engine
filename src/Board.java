@@ -18,6 +18,25 @@ public class Board {
     private boolean[][] canCastle = new boolean[2][2];  // first index is colour, second is direction
                                                         // 0=black, 1=white, 0=short, 1=long
     
+    // bitboards
+    public long[] bitboards = {
+        // white
+        0, // pawn
+        0, // knight
+        0, // bishop
+        0, // rook
+        0, // queen
+        0, // king
+        // black
+        0, // pawn
+        0, // knight
+        0, // bishop
+        0, // rook
+        0, // queen
+        0  // king
+    };
+
+
     // main constructor, initialises board from fen string (falls back to default position)
     public Board(String fen) {
         // try to load fen
@@ -140,6 +159,15 @@ public class Board {
             return false;
         }
 
+        
+        // for (int i = 0; i < this.bitboards.length; i++) this.bitboards[i] = 0;
+        // clear all bitboards and this.tiles
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                this.removePieceAt(new Coord(i,j));
+            }
+        }
+        
         for (int i = 0; i < 8; i++) {
             int end = 8; // make sure we only read required amount of chars
             // x used to index this.tiles[], j used to index rows[i]
@@ -156,12 +184,13 @@ public class Board {
 
                     // add the correct amount of empty spaces to this row
                     for (int a = 0; a < value; a++) {
-                        this.tiles[i][x] = new Piece(Colour.None, PieceType.empty, new Coord(x, 7-i), this);
+                        // this.tiles[i][x] = new Piece(Colour.None, PieceType.empty, new Coord(x, 7-i), this);
+                        this.removePieceAt(new Coord (x, 7-i));
                         if (a < value - 1) x++;
                     }
                 } else if ("kqrbnpKQRBNP".indexOf(rows[i].charAt(j)) != -1) {
+                    // determine piecetype
                     PieceType type;
-
                     switch (rows[i].toLowerCase().charAt(j)) {
                         case 'k': type = PieceType.king;   break;
                         case 'q': type = PieceType.queen;  break;
@@ -172,15 +201,20 @@ public class Board {
                         default:  return false;  // invalid character, error
                     }
 
+                    // determine colour
                     Colour colour;
-
                     if (rows[i].charAt(j) == rows[i].toLowerCase().charAt(j)) {
                         colour = Colour.Black;
                     } else {
                         colour = Colour.White;
                     }
 
-                    this.tiles[i][x] = new Piece(colour, type, new Coord(x, 7-i), this);
+                    // set piece at relevant coord to new piece with the relevant values set
+                    // (x,y)->(y,7-x) is the transform done here, this rotates 90 deg clockwise as we are
+                    // using a different coordinate system in this loop than is expected elsewhere
+                    // this.tiles[i][x] = new Piece(colour, type, new Coord(x, 7-i), this);
+                    this.setPieceAt(new Coord(x, 7-i), new Piece(colour, type, new Coord(x, 7-i), this));
+                    // System.out.println("x: " + i + " y: " + x + " | newX: " + x + " newY: " + (7-i));
                 } else {
                     // invalid character, error
                     return false;
@@ -188,7 +222,6 @@ public class Board {
 
                 x++;
             }
-
         }
 
         // field 1: current turn
@@ -302,47 +335,98 @@ public class Board {
         return str;
     }
 
-    public boolean[][] getCastlingPossibilities() {
-        return this.canCastle;
-    }
-
-    public Colour getSideToMove() {
-        return this.sideToMove;
-    }
-
-    // there are 2 different ways of representing coordinates in this project
-    // pseudo coords (intutive human way in line with cartesian graphing):
-    // a8=0,7 h8=7,7 a1=0,0 h1=7,0
-    // 'actual' coords (optimal for board drawing top-to-bottom, left-to-right):
-    // a8=0,0 h8=0,7 a1=7,0 h1=7,7 -- anticlockwise rotate 90deg around centre
-
-    // c1=2,0 h3=7,2 f8=5,7 a6=0,5
-    // c1=7,2 h3=5,7 f8=0,5 a6=2,0 -- anticlockwise rotate 90deg around centre (again)
     
-    // to convert: use (-y, x) method BUT centre is (3.5, 3.5) instead of origin
-    // therefore, subtract (3.5, 3.5) from point, do (-y,x) then re-add
-    // c1=2,0 -> c1=-1.5,-3.5 -> c1=3.5,-1.5  -> c1=7,2 -- works!
-    // h3=7,2 -> h3=3.5,-1.5  -> h3=1.5,3.5   -> h3=5,7 -- works!
-    // a8=0,7 -> a8=-3.5,3.5  -> a8=-3.5,-3.5 -> a8=0,0 -- works! etc.
-
-    // this function maps the intuitive way of thinking of coordinates into the
-    // format that the drawing/tostring functions for board positions use to best
-    // draw the board to the console. this involves rotate 90 deg anticlockwise
-    // around the central point of the board (3.5,3.5) which is explained above
-    // briefly and in further detail in my dissertation on this project
+    // wrapper for the below function
     public Piece pieceAt(int x, int y) {
-        return this.tiles[7-y][x];
-        // this is an optimised and condensed version of the explained process:
-        // x -= 3.5;
-        // y -= 3.5;
-        // finalX = -y + 3.5
-        // finalY = x  + 3.5
-        // simplified:
-        // finalX = -(y-3.5)+3.5
-        // finalY = (x-3.5)+3.5
-        // further simplified:
-        // finalX = -y+7
-        // finalY = x
+        return this.pieceAt(new Coord(x, y));
+    }
+    
+    // returns the piece on the board at given coord
+    public Piece pieceAt(Coord coord) {
+        Colour colour;
+        PieceType pieceType = PieceType.empty;
+        
+        // determine the colour of the piece
+        if (Bitboards.match(Bitboards.whiteSquares(this.bitboards), coord)) {
+            // there is a white piece here
+            colour = Colour.White;
+        } else if (Bitboards.match(Bitboards.blackSquares(this.bitboards), coord)) {
+            // there is a black piece here
+            colour = Colour.Black;
+        } else {
+            // empty square, return new empty piece
+            return new Piece(Colour.None, PieceType.empty, coord, this);
+        }
+
+        // iterate through bitboards of appropriate colour to determine piecetype
+        int offset = (colour == Colour.White ? 0 : 6);
+        for (int i = offset; i < 6+offset; i++) {
+            if (Bitboards.match(this.bitboards[i], coord)) {
+                pieceType = PieceType.values()[i-offset];
+                // System.out.println(colour + " " + pieceType + " @ " + coord);
+                break;
+            }
+        }
+        
+        if (pieceType == PieceType.empty) {
+            // something went wrong, couldnt match piece to any of the bitboards
+            // System.out.println("ERROR, info below");
+            // for (long b : this.bitboards) System.out.println(Long.toBinaryString(b));
+            // System.out.println("coord " + coord + " (index " + Bitboards.toIndex(coord) + ") " + "colour " + colour);
+            // System.out.println(Long.toBinaryString(Bitboards.whiteSquares(this.bitboards)));
+            // System.out.println(Long.toBinaryString(Bitboards.blackSquares(this.bitboards)));
+            throw new RuntimeException("Board.pieceAt() bitboard error");
+        }
+        
+        return new Piece(colour, pieceType, coord, this);
+    }
+    
+    public void setPieceAt(Coord coord, Piece piece) {
+        // firstly we need to make this square empty on all bitboards
+        for (int i = 0; i < this.bitboards.length; i++) {
+            this.bitboards[i] = Bitboards.unsetBit(this.bitboards[i], Bitboards.toIndex(coord));
+        }
+        
+        // also handle this.tiles
+        this.tiles[7-coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
+        
+        // if we are setting this square to be empty, we are already done
+        if (piece.getType() == PieceType.empty || piece.getColour() == Colour.None) {
+            return;
+        }
+        
+        // next we are going to set the bit on the appropriate bitboard
+        
+        // determine which bitboard needs to be modified
+        int pieceTypeIndex = -1;
+        for (int i = 0; i < PieceType.values().length-1; i++) {
+            if (piece.getType() == PieceType.values()[i]) {
+                pieceTypeIndex = i;
+                break;
+            }
+        }
+        
+        if (pieceTypeIndex == -1) throw new RuntimeException("unable to determine PieceType");
+        
+        int offset = (piece.getColour() == Colour.White ? 0 : 6);  // colour-based offset into this.bitboards
+        offset += pieceTypeIndex;  // final index of this.bitboards to modify
+        
+        // set the appropriate bit in appropriate bitboard
+        this.bitboards[offset] = Bitboards.setBit(this.bitboards[offset], Bitboards.toIndex(coord));
+        
+        // old, non-bitboard way
+        // set this.tiles for new square to piece
+        this.tiles[7 - coord.getY()][coord.getX()] = new Piece(piece.getColour(), piece.getType(), coord, this);
+    }
+
+    public void removePieceAt(Coord coord) {
+        // bitboards
+        for (int i = 0; i < this.bitboards.length; i++) {
+            this.bitboards[i] = Bitboards.unsetBit(this.bitboards[i], Bitboards.toIndex(coord));
+        }
+        
+        // old way with this.tiles
+        this.tiles[7 - coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
     }
 
     // only to be used for detection of checks, not intended for showing only fully legal moves
@@ -436,11 +520,6 @@ public class Board {
         }
 
         return false;
-    }
-
-    // wrapper for the above function, just passes x and y of the coord into it
-    public Piece pieceAt(Coord coord) {
-        return this.pieceAt(coord.getX(), coord.getY());
     }
 
     // returns the piece object for the king of a given colour.
@@ -554,6 +633,14 @@ public class Board {
 
     public int getHalfMoveNumber() {
         return this.halfmove;
+    }
+    
+    public boolean[][] getCastlingPossibilities() {
+        return this.canCastle;
+    }
+
+    public Colour getSideToMove() {
+        return this.sideToMove;
     }
 
     public HashMap<String, Integer> getRepetitionTable() {

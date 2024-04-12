@@ -33,14 +33,14 @@ public class CastlingMove extends Move {
         }
 
         // put corresponding rook on its new square
-        newBoard.pieceAt(this.piece.getCoord().getX() + (shortCastle ? 1 : -1), this.coord.getY()).overwrite(rook);
+        newBoard.setPieceAt(new Coord(this.piece.getCoord().getX()+(shortCastle ? 1 : -1), this.coord.getY()), rook);
         // remove rook from previous square
-        newBoard.pieceAt(rook.getCoord()).setEmpty();
+        newBoard.removePieceAt(rook.getCoord());
 
         // put king on its new square
-        newBoard.pieceAt(this.coord).overwrite(this.piece);
+        newBoard.setPieceAt(this.coord, this.piece);
         // remove king from previous square
-        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.removePieceAt(this.piece.getCoord());
 
         // remove all castling for this side
         newBoard.removeCastling(this.piece.getColour(), 0);

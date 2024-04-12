@@ -17,16 +17,16 @@ public class Piece {
     // there is only one piece object per square/tile; instead
     // of manually editing the board's tiles array, we can just
     // change the piece types and colours when necessary
-    public void overwrite(Piece piece) {
-        this.colour = piece.getColour();
-        this.type = piece.getType();
-    }
+    // public void overwrite(Piece piece) {
+    //     this.colour = piece.getColour();
+    //     this.type = piece.getType();
+    // }
 
     // for being moved
     // see above
-    public void setEmpty() {
-        this.type = PieceType.empty;
-    }
+    // public void setEmpty() {
+    //     this.type = PieceType.empty;
+    // }
 
     // returns an ArrayList of all the moves a piece could potentially make, ignoring checks
     // this may include illegal moves and these will only later be filtered out in a seperate

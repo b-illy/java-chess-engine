@@ -31,11 +31,11 @@ public class EnPassantMove extends Move {
         }
 
         // put this pawn on its new square
-        newBoard.pieceAt(this.coord).overwrite(this.piece);
+        newBoard.setPieceAt(this.coord, this.piece);
         // remove the now old duplicate on our piece's original square
-        newBoard.pieceAt(this.piece.getCoord()).setEmpty();
+        newBoard.removePieceAt(this.piece.getCoord());
         // also remove the en passanted pawn we are taking
-        newBoard.pieceAt(otherPawnCoord).setEmpty();
+        newBoard.removePieceAt(otherPawnCoord);
 
         // (dont need to update castling possibilities on these types of moves, move on)
 
