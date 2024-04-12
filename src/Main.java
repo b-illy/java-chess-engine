@@ -1,10 +1,12 @@
 public class Main {
     // configure which tests are to be run here
     public final static boolean testMode = true;
-    private final static boolean testFENLoading = false;
+    private final static boolean testBitBoards = true;
+    private final static boolean testFENLoading = true;
+    private final static boolean testEval = false;
     private final static boolean testMoveMaking = false;
     private final static boolean testPositionCounts = true;
-    private final static boolean testPlaySelf = false;
+    private final static boolean testPlaySelf = true;
 
     private final static long countPositions(int depth, Board pos) {
         if (depth == 0) return 1;
@@ -22,21 +24,50 @@ public class Main {
             System.out.println("--> NOTICE: Test mode ACTIVE");
             Board testBoard = new Board();
 
-            for (int i = 0; i < 8; i++) {
-                for (int j = 0; j < 8; j++) {
-                    Piece p = testBoard.pieceAt(i, j);
-                    System.out.println(new Coord(i,j) + ": " + p.getColour() + " " + p.getType());
+            if (testBitBoards) {
+                System.out.println("\n\n--> Testing bit board related tasks\n");
+                // use custom fen so it isnt symmetrical
+                testBoard.loadFEN("rnbqkbnr/pppppppp/8/8/8/7P/PPPPPPP1/RNBQKBNR w KQkq - 0 1");
+                testBoard.print();
+
+                System.out.println("White piece bitboard: ");
+                Bitboards.print(Bitboards.whiteSquares(testBoard.getBitboards()));
+                System.out.println("Black piece bitboard: ");
+                Bitboards.print(Bitboards.blackSquares(testBoard.getBitboards()));
+    
+                Coord[] testCoords = {
+                    new Coord(2,4),
+                    new Coord(1,1),
+                    new Coord(7,7),
+                    new Coord(2,4)
+                };
+
+                for (Coord coord : testCoords) {
+                    int coordIndex = Bitboards.toIndex(coord);
+                    System.out.println("\nCoord " + coord + " (index " + coordIndex + ")");
+                    System.out.println("file and rank mask:");
+                    Bitboards.print(Bitboards.fileMask(coordIndex) | Bitboards.rankMask(coordIndex));
+                    System.out.println("king move mask:");
+                    Bitboards.print(Bitboards.kingMoveMask(coordIndex));
+                    System.out.println("knight move mask:");
+                    Bitboards.print(Bitboards.knightMoveMask(coordIndex));
+                    System.out.println("passed pawn mask");
+                    Bitboards.print(Bitboards.passedPawnMaskWhite(coordIndex));
                 }
+
             }
 
-            if (testFENLoading) {
-                System.out.println("--> Testing FEN loading and printing");
 
-                System.out.println("\nDefault board");
+            if (testFENLoading) {
+                System.out.println("\n\n--> Testing FEN loading and printing\n");
+
+                System.out.println("Default board");
+                testBoard = new Board();
                 testBoard.print();
 
                 String[] testFENs = {
                     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // normal start pos
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1", // start pos black to move
                     "8/5k2/3p4/1p1Pp2p/pP2Pp1P/P4P1K/8/8 b - - 99 40",
                     "rnQ2bn1/p2pp1p1/8/8/3PN1p1/1P6/4B2P/2R1K2R w - - 0 0",
                     "rnbq1bnr/ppppkppp/8/4p3/4P3/8/PPPPKPPP/RNBQ1BNR w - - 2 3",
@@ -52,6 +83,7 @@ public class Main {
                     } else {
                         testBoard.print();
                         System.out.println("Legal moves in this position: " + testBoard.getLegalMoveCount());
+                        System.out.println("Moves:\n" + testBoard.getLegalMoves().toString());
                         // make sure that the fens given by getFEN() are accurate
                         if (testFENs[i].equals(testBoard.getFEN())) {
                             System.out.println("Regenerated FEN matches with loaded FEN");
@@ -60,18 +92,20 @@ public class Main {
                         }
 
                         // evaluation testing
-                        long startTime = System.nanoTime();
-                        SearchThread st = new SearchThread(testBoard, 0, (short)0);
-                        st.start();
-                        try {
-                            st.join();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                            break;
+                        if (testEval) {
+                            long startTime = System.nanoTime();
+                            SearchThread st = new SearchThread(testBoard, 0, (short)0);
+                            st.start();
+                            try {
+                                st.join();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                                break;
+                            }
+                            System.out.println("Evaluation: " + st.getEval());
+                            System.out.println("Best move: " + st.getBestMove());
+                            System.out.println("Time taken (ms): " + ((System.nanoTime() - startTime)/1000000));
                         }
-                        System.out.println("Evaluation: " + st.getEval());
-                        System.out.println("Best move: " + st.getBestMove());
-                        System.out.println("Time taken (ms): " + ((System.nanoTime() - startTime)/1000000));
                     }
                 }
             }
@@ -111,7 +145,7 @@ public class Main {
                     }
                 }
 
-                System.out.print("\n--> Testing move parsing\n");
+                System.out.println("\n--> Testing move parsing\n");
 
                 // move parsing test (in given position)
                 String[][] testMovesParsing = {
@@ -132,6 +166,8 @@ public class Main {
 
             
             if (testPositionCounts) {
+                System.out.println("\n\n--> Testing position counts\n");
+
                 // provided by https://www.chessprogramming.org/Perft_Results, with reference output
                 final String[] perftTestPositions = {
                     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", // start pos
@@ -141,7 +177,7 @@ public class Main {
                     "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8" // very tricky
                 };
 
-                testBoard.loadFEN(perftTestPositions[4]);
+                testBoard.loadFEN(perftTestPositions[0]);
                 
                 // count num positions
                 for (int i = 0; i <= 5; i++) {

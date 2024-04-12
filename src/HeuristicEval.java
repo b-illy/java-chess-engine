@@ -32,6 +32,9 @@ public class HeuristicEval {
             return new Evaluation(Colour.None);
         }
 
+
+        long whiteOccupancy = Bitboards.whiteSquares(position.getBitboards());
+        long blackOccupancy = Bitboards.blackSquares(position.getBitboards());
         
         // add up raw piece values based on constants
         long totalMaterialValue = 0;
@@ -145,7 +148,6 @@ public class HeuristicEval {
             doubledPawns[j+8] = pawnsBlackHere;
         }
 
-        
         // apply penalties for doubled (or more) pawns
         for (int i = 0; i < 16; i++) {
             long penalties = (long)(Math.pow(Math.max(0, doubledPawns[i]-1), 1.2));
@@ -153,13 +155,42 @@ public class HeuristicEval {
         }
 
 
-        // apply bonuses for number of unique squares 'controlled'
-        // TODO - but this will probably be tracked separately eventually
-        // for (int i = 0; i < 8; i++) {
-        //     for (int j = 0; j < 8; j++) {
+        // detect passed pawns and give bonuses
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                Piece p = position.pieceAt(i, j);
+                if (p.getType() != PieceType.pawn) continue;
+                int index = Bitboards.toIndex(p.getCoord());
 
-        //     }
-        // }
+                // generate mask covering all squares that need to be pawnless for this to be a passer
+                long passedPawnMask;
+                if (p.getColour() == Colour.White) passedPawnMask = Bitboards.passedPawnMaskWhite(index);
+                else passedPawnMask = Bitboards.passedPawnMaskBlack(index);
+
+                long enemyPawns = position.getBitboards()[p.getColour()==Colour.White?0:6];
+
+                if ((passedPawnMask & enemyPawns) == 0) {
+                    // this must be a passed pawn, give bonus
+                    if (p.getColour() == Colour.White) {
+                        centipawns += Constants.EVAL_PASSED_PAWN_BONUSES[7 - (index/8)];
+                    } else {
+                        centipawns -= Constants.EVAL_PASSED_PAWN_BONUSES[index/8];
+                    }
+                }
+            }
+        }
+
+
+        // apply bonuses for number of unique squares 'controlled'
+        int squaresControlledDiff = 0;
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                if (position.isSquareAttacked(new Coord(i, j), Colour.White)) squaresControlledDiff++;
+                else if (position.isSquareAttacked(new Coord(i, j), Colour.Black)) squaresControlledDiff--;
+            }
+        }
+
+        centipawns += squaresControlledDiff * Constants.EVAL_CONTROLLED_SQUARE_BONUS;
         
 
         // increase magnitude of eval based on number of pieces

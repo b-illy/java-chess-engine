@@ -4,7 +4,7 @@ import java.util.HashMap;
 public class Board {
     private final static String startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     
-    private Piece[][] tiles = new Piece[8][8];
+    // private Piece[][] tiles = new Piece[8][8];
     private GameState gameState;
     private int gameStateLastUpdate;
     private ArrayList<Move> legalMoves;
@@ -19,7 +19,7 @@ public class Board {
                                                         // 0=black, 1=white, 0=short, 1=long
     
     // bitboards
-    public long[] bitboards = {
+    private long[] bitboards = {
         // white
         0, // pawn
         0, // knight
@@ -33,8 +33,16 @@ public class Board {
         0, // bishop
         0, // rook
         0, // queen
-        0  // king
+        0, // king
+        // white controlled squares
+        0,
+        // black controlled squares
+        0
     };
+
+    public long[] getBitboards() {
+        return this.bitboards;
+    }
 
 
     // main constructor, initialises board from fen string (falls back to default position)
@@ -114,8 +122,9 @@ public class Board {
         int x = 0;
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
+                Piece p = this.pieceAt(j, 7-i);
                 // this tile should contain a letter showing its type and colour
-                switch(this.tiles[i][j].getType()) {
+                switch(p.getType()) {
                     case king:   charSeq[x] = 'k'; break;
                     case queen:  charSeq[x] = 'q'; break;
                     case rook:   charSeq[x] = 'r'; break;
@@ -126,7 +135,7 @@ public class Board {
                 }
 
                 // make white pieces uppercase
-                if (this.tiles[i][j].getColour() == Colour.White) {
+                if (p.getColour() == Colour.White) {
                     charSeq[x] = Character.toUpperCase(charSeq[x]);
                 }
 
@@ -185,7 +194,7 @@ public class Board {
                     // add the correct amount of empty spaces to this row
                     for (int a = 0; a < value; a++) {
                         // this.tiles[i][x] = new Piece(Colour.None, PieceType.empty, new Coord(x, 7-i), this);
-                        this.removePieceAt(new Coord (x, 7-i));
+                        // this.removePieceAt(new Coord (x, 7-i));
                         if (a < value - 1) x++;
                     }
                 } else if ("kqrbnpKQRBNP".indexOf(rows[i].charAt(j)) != -1) {
@@ -250,6 +259,9 @@ public class Board {
         // field 5: fullmove number
         this.move = Integer.parseInt(fields[5]);
 
+        // finally, check controlled squares for each side and store this
+        this.checkControlledSquares();
+
         // everything seems to have worked, success (return true)
         return true;
     }
@@ -269,7 +281,8 @@ public class Board {
         for (int i = 0; i < 8; i++) {
             emptyCount = 0;
             for (int j = 0; j < 8; j++) {
-                Piece t = this.tiles[i][j];  // shorthand shortcut
+                // Piece t = this.tiles[i][j];  // shorthand shortcut
+                Piece t = this.pieceAt(j, 7-i);
 
                 if (t.getType() == PieceType.empty) {
                     emptyCount++;
@@ -388,7 +401,7 @@ public class Board {
         }
         
         // also handle this.tiles
-        this.tiles[7-coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
+        // this.tiles[7-coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
         
         // if we are setting this square to be empty, we are already done
         if (piece.getType() == PieceType.empty || piece.getColour() == Colour.None) {
@@ -416,7 +429,7 @@ public class Board {
         
         // old, non-bitboard way
         // set this.tiles for new square to piece
-        this.tiles[7 - coord.getY()][coord.getX()] = new Piece(piece.getColour(), piece.getType(), coord, this);
+        // this.tiles[7 - coord.getY()][coord.getX()] = new Piece(piece.getColour(), piece.getType(), coord, this);
     }
 
     public void removePieceAt(Coord coord) {
@@ -426,23 +439,63 @@ public class Board {
         }
         
         // old way with this.tiles
-        this.tiles[7 - coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
+        // this.tiles[7 - coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
+    }
+
+    public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
+        return Bitboards.match(this.bitboards[byColour == Colour.White ? 12 : 13], atCoord);
+    }
+
+    private void checkControlledSquares() {
+        // reset existing controlled square bitboards
+        this.bitboards[12] = 0;
+        this.bitboards[13] = 0;
+
+        // handle pawn attacks all at once with masks
+        this.bitboards[12] |= Bitboards.pawnAttacksL(this.bitboards[12], true);
+        this.bitboards[12] |= Bitboards.pawnAttacksR(this.bitboards[12], true);
+        this.bitboards[13] |= Bitboards.pawnAttacksL(this.bitboards[13], false);
+        this.bitboards[13] |= Bitboards.pawnAttacksR(this.bitboards[13], false);
+
+        // handle knights
+        for (int i = 0; i < 64; i++) {
+            for (int j = 0; j < 2; j++) {
+                if (Bitboards.match(this.bitboards[1+(6*j)], i))
+                this.bitboards[12+j] |= Bitboards.knightMoveMask(i);
+            }
+        }
+
+        // handle kings
+        this.bitboards[12] |= Bitboards.kingMoveMask(Bitboards.toIndex(this.getKing(Colour.White).getCoord()));
+        this.bitboards[13] |= Bitboards.kingMoveMask(Bitboards.toIndex(this.getKing(Colour.Black).getCoord()));
+
+        // iterate over every square
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                // set relevant bit for each square attacked for each colour
+                for (int k = 0; k < 2; k++) {
+                    if (this.checkIfSquareControlled(new Coord(i, j), k==0?Colour.White:Colour.Black)) {
+                        this.bitboards[k==0?12:13] = Bitboards.setBit(this.bitboards[k==0?12:13], Bitboards.toIndex(i, j));
+                    }
+                }
+            }
+        }
     }
 
     // only to be used for detection of checks, not intended for showing only fully legal moves
-    public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
+    private boolean checkIfSquareControlled(Coord atCoord, Colour byColour) {
         if (byColour == Colour.None) return false; // method should only be called with byColour White or Black
 
         // seperate handling of pawn moves
-        final int moveDirection = (byColour == Colour.White ? 1 : -1);
-        final Coord[] pawnCoords = {new Coord(atCoord.getX()+1, atCoord.getY()-moveDirection),
-                                    new Coord(atCoord.getX()-1, atCoord.getY()-moveDirection)};
-        for (Coord c : pawnCoords) {
-            if (!c.isInBounds()) continue;
-            Piece p = this.pieceAt(c);
-            if (p.getColour() != byColour) continue;
-            if (p.getType() == PieceType.pawn) return true;
-        }
+        // final int moveDirection = (byColour == Colour.White ? 1 : -1);
+        // final Coord[] pawnCoords = {new Coord(atCoord.getX()+1, atCoord.getY()-moveDirection),
+        //                             new Coord(atCoord.getX()-1, atCoord.getY()-moveDirection)};
+        // for (Coord c : pawnCoords) {
+        //     if (!c.isInBounds()) continue;
+        //     Piece p = this.pieceAt(c);
+        //     if (p.getColour() != byColour) continue;
+        //     if (p.getType() == PieceType.pawn) return true;
+        // }
 
         // seperate handling of knight moves
 
@@ -452,26 +505,26 @@ public class Board {
         // all of these can be represented in another way by using 3 booleans:
         // most significant direction (x/y), x is positive (t/f), y is positive (t/f)
         // these can be handled iteratively in a similar way to rook moves but with an extra bool
-        for (int sigX = 0; sigX < 2; sigX++) {
-            for (int posX = 0; posX < 2; posX ++) {
-                for (int posY = 0; posY < 2; posY++) {
-                    // calculate the amount that should be moved in each direction on this move (see above)
-                    int xMovement = -1;
-                    int yMovement = -1;
-                    if (posX != 0) xMovement = 1;
-                    if (posY != 0) yMovement = 1;
-                    if (sigX != 0) xMovement *= 2;
-                    else yMovement *= 2;
+        // for (int sigX = 0; sigX < 2; sigX++) {
+        //     for (int posX = 0; posX < 2; posX ++) {
+        //         for (int posY = 0; posY < 2; posY++) {
+        //             // calculate the amount that should be moved in each direction on this move (see above)
+        //             int xMovement = -1;
+        //             int yMovement = -1;
+        //             if (posX != 0) xMovement = 1;
+        //             if (posY != 0) yMovement = 1;
+        //             if (sigX != 0) xMovement *= 2;
+        //             else yMovement *= 2;
 
-                    // add this change to current coord and add if move is legal
-                    Coord c = new Coord(atCoord.getX()+xMovement, atCoord.getY()+yMovement);
-                    if (!c.isInBounds()) continue;
-                    if (this.pieceAt(c).getType() == PieceType.knight && this.pieceAt(c).getColour() == byColour) {
-                        return true;
-                    }
-                }
-            }
-        }
+        //             // add this change to current coord and add if move is legal
+        //             Coord c = new Coord(atCoord.getX()+xMovement, atCoord.getY()+yMovement);
+        //             if (!c.isInBounds()) continue;
+        //             if (this.pieceAt(c).getType() == PieceType.knight && this.pieceAt(c).getColour() == byColour) {
+        //                 return true;
+        //             }
+        //         }
+        //     }
+        // }
 
         // iterate over each possible direction a piece can move in
         for (int i = -1; i <= 1; i++) {
@@ -486,7 +539,7 @@ public class Board {
                 Piece p = this.pieceAt(c);
 
                 // firstly, check for king (range of only 1 square)
-                if (p.getColour() == byColour && p.getType() == PieceType.king) return true;
+                // if (p.getColour() == byColour && p.getType() == PieceType.king) return true;
 
                 for (int multiplyingFactor = 1; multiplyingFactor < 8; multiplyingFactor++) {
                     // setup coordinate and piece for this iteration
@@ -643,13 +696,27 @@ public class Board {
         return this.sideToMove;
     }
 
+    public Coord getEnPassantSquare() {
+        return this.enPassantTarget;
+    }
+
     public HashMap<String, Integer> getRepetitionTable() {
         return this.repetitionTable;
     }
 
     public void load(Board b) {
-        // copy position itself
-        this.loadFEN(b.getFEN());
+        // copy everything about the position itself
+        // this.loadFEN(b.getFEN());
+        this.bitboards = b.getBitboards().clone();
+        this.sideToMove = b.getSideToMove();
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                this.canCastle[i][j] = b.getCastlingPossibilities()[i][j];
+            }
+        }
+        this.move = b.getMoveNumber();
+        this.halfmove = b.getHalfMoveNumber();
+        this.enPassantTarget = b.getEnPassantSquare();
         
         // copy over move history
         this.moveHistory = new ArrayList<Move>();
@@ -663,6 +730,7 @@ public class Board {
             this.repetitionTable.put(s, b.getRepetitionTable().get(s));
         }
 
+        // discard any currently cached values as they as probably invalid now
         this.gameStateLastUpdate = -1;
         this.legalMovesLastUpdate = -1;
     }

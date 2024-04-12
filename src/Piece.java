@@ -1,10 +1,10 @@
 import java.util.ArrayList;
 
 public class Piece {
-    private Colour colour;
-    private PieceType type;
-    private Coord coord;
-    private Board board;
+    public final Colour colour;
+    public final PieceType type;
+    public final Coord coord;
+    public final Board board;
 
     public Piece(Colour colour, PieceType type, Coord coord, Board board) {
         this.colour = colour;
@@ -13,20 +13,6 @@ public class Piece {
         this.board = board;
     }
 
-    // for being taken
-    // there is only one piece object per square/tile; instead
-    // of manually editing the board's tiles array, we can just
-    // change the piece types and colours when necessary
-    // public void overwrite(Piece piece) {
-    //     this.colour = piece.getColour();
-    //     this.type = piece.getType();
-    // }
-
-    // for being moved
-    // see above
-    // public void setEmpty() {
-    //     this.type = PieceType.empty;
-    // }
 
     // returns an ArrayList of all the moves a piece could potentially make, ignoring checks
     // this may include illegal moves and these will only later be filtered out in a seperate
@@ -34,32 +20,38 @@ public class Piece {
     public ArrayList<Move> getCandidateMoves() {
         // candidate moves will be added here, culled down, and then the arraylist returned
         ArrayList<Move> moves = new ArrayList<Move>();
+        if (this.colour == Colour.None || this.type == PieceType.empty) return moves;
 
+        // occupancy bitboards
+        long friendlyOccupancy;
+        long enemyOccupancy;
+        
+        if (this.colour == Colour.White) {
+            friendlyOccupancy = Bitboards.whiteSquares(this.board.getBitboards());
+            enemyOccupancy = Bitboards.blackSquares(this.board.getBitboards());
+        } else {
+            enemyOccupancy = Bitboards.whiteSquares(this.board.getBitboards());
+            friendlyOccupancy = Bitboards.blackSquares(this.board.getBitboards());
+        }
+
+        // the bitboard index will shift by this amount when sliding in each corresponding direction
+        // first 4 are cardinal directions, last 4 are diagonal directions
+        final int[] indexOffsets = {-1,  1, -8,  8, -9,  9,  -7,  7};
+
+        int bitboardIndex = Bitboards.toIndex(this.coord);
+        long moveBitboard = 0;
+
+
+        // main movegen section
         switch (this.type) {
             case king:
-                // king can move one square horizontally and diagonally
-                // cardinals: 0 +1, 0 -1, +1 0, -1 0
-                // diagonals: +1 +1, +1 -1, -1 -1, -1 +1
-                // NOT valid: 0 0 - this is a move to the same square and is never possible
-                // this totals 8 possible moves
-                for (int i = -1; i <= 1; i++) {
-                    for (int j = -1; j <= 1; j++) {
-                        if (i == 0 && j == 0) continue;  // cant move to the same square
-                        
-                        // add move if it is in bounds and not taken by another piece of same colour
-                        Coord c = new Coord(this.coord.getX() + i, this.coord.getY() + j);
-                        if (!c.isInBounds()) continue;
-                        if (this.board.pieceAt(c).getType() == PieceType.empty || this.board.pieceAt(c).getColour() != this.colour) {
-                            moves.add(new Move(this, c));
-                        }
-                        
-                    }
-                }
+                // use bitboards to add normal moves
+                moveBitboard |= Bitboards.kingMoveMask(bitboardIndex) & ~friendlyOccupancy;
 
                 // king can also castle, either short and long.
                 // for this to be legal the king and rook involved can't have moved yet,
                 // there also can't be any pieces in the way.
-                boolean[][] castling = this.getBoard().getCastlingPossibilities();
+                boolean[][] castling = this.board.getCastlingPossibilities().clone();
 
                 // check for clear path between king and rook, add the move if available
 
@@ -113,7 +105,7 @@ public class Piece {
                     for (int posMarker = 0; posMarker < 2; posMarker++) {
 
                         // start looking for moves outwards from where this piece is
-                        Coord c = this.getCoord();
+                        Coord c = this.coord;
 
                         while (true) {
                             // check next square in appropriate direction, see explanation above
@@ -193,32 +185,8 @@ public class Piece {
 
             case knight:
                 // moves 2 squares horizontally and 1 square perpendicular to the inital direction in one move
-
-                // there are 8 possible moves that a knight can make:
-                // -2 -1, -2 +1, +2 -1, +2 +1, -1 -2, -1 +2, +1 -2, +1 +2
-                // all of these can be represented in another way by using 3 booleans:
-                // most significant direction (x/y), x is positive (t/f), y is positive (t/f)
-                // these can be handled iteratively in a similar way to rook moves but with an extra bool
-                for (int sigX = 0; sigX < 2; sigX++) {
-                    for (int posX = 0; posX < 2; posX ++) {
-                        for (int posY = 0; posY < 2; posY++) {
-                            // calculate the amount that should be moved in each direction on this move (see above)
-                            int xMovement = -1;
-                            int yMovement = -1;
-                            if (posX != 0) xMovement = 1;
-                            if (posY != 0) yMovement = 1;
-                            if (sigX != 0) xMovement *= 2;
-                            else yMovement *= 2;
-
-                            // add this change to current coord and add if move is legal
-                            Coord c = new Coord(this.coord.getX()+xMovement, this.coord.getY()+yMovement);
-                            if (!c.isInBounds()) continue;
-                            if (this.board.pieceAt(c).getType() == PieceType.empty || this.board.pieceAt(c).getColour() != this.colour) {
-                                moves.add(new Move(this, c));
-                            }
-                        }
-                    }
-                }
+                // (handled by bitboard masks)
+                moveBitboard |= Bitboards.knightMoveMask(bitboardIndex) & ~friendlyOccupancy;
 
                 break;
 
@@ -317,6 +285,13 @@ public class Piece {
                 break;
         }
 
+        // add moves from generated move bitboards
+        for (int i = 0; i < 64; i++) {
+            if (Bitboards.match(moveBitboard, i)) {
+                moves.add(new Move(this, Bitboards.toCoord(i)));
+            }
+        }
+
         // return the arraylist of all candidate moves for the relevant piece
         return moves;
     }
@@ -335,6 +310,14 @@ public class Piece {
 
         // simulate each move and see if any moves exist after that which could capture the king - flag for removal
         for (Move m1 : moves) {
+            // remove instantly if the king is moving to an attacked square
+            if (m1.getPiece().getType() == PieceType.king) {
+                if (m1.getBoard().isSquareAttacked(m1.getCoord(), (m1.getPiece().getColour() == Colour.White ? Colour.Black : Colour.White))) {
+                    removalList.add(m1);
+                    continue;
+                }
+            }
+
             Board newBoard;
             try {
                 newBoard = m1.simulate();

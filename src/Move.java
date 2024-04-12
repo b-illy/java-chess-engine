@@ -15,7 +15,6 @@ public class Move {
     // update underlying board with new position after this move
     public void make() {
         this.board.load(this.simulate());
-
     }
 
     public Board simulate() {
@@ -39,7 +38,7 @@ public class Move {
 
         // 2-size array representing castling oppurtunities for the colour of the piece of this move
         // 0=short, 1=long e.g. [true, false] means short is possible but not long
-        boolean[] myColourCastle = newBoard.getCastlingPossibilities()[this.piece.getColour() == Colour.White ? 1 : 0];
+        final boolean[] myColourCastle = newBoard.getCastlingPossibilities()[this.piece.getColour() == Colour.White ? 1 : 0];
         // if any type of castling is possible for this side...
         if (myColourCastle[0] || myColourCastle[1]) {
             // any king move makes any type of castling impossible
