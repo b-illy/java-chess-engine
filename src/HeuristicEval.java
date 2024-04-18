@@ -17,8 +17,12 @@ public class HeuristicEval {
     }
 
     public static Evaluation evaluate(Board position) {
+        // if we are running in self-test mode right now, show some debug info
         HeuristicEval.totalPositionsEvaluated++;
-        if (Main.testMode && HeuristicEval.totalPositionsEvaluated % 10000 == 0) System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
+        if (SelfTest.testMode && HeuristicEval.totalPositionsEvaluated % 10000 == 0)
+        System.out.println("Positions evaluated: " + HeuristicEval.totalPositionsEvaluated);
+
+
         long centipawns = 0;
 
         // check for game over
