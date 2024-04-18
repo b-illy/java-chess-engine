@@ -93,9 +93,9 @@ public class SearchThread extends Thread {
 
                 // take an educated (very approximate) guess at how many more moves we will have to make this game
                 // to be safe, this guess is quite conservative i.e. most likely bigger than it needs to be
-                int estMovesLeft = 50;
-                if (this.rootPos.getMoveNumber() > 30) estMovesLeft -= (this.rootPos.getMoveNumber() - 30) / 2;
-                estMovesLeft = Math.max(20, estMovesLeft);  // make sure this doesnt drop below a certain threshold
+                int estMovesLeft = 40;
+                if (this.rootPos.getMoveNumber() > 20) estMovesLeft -= (this.rootPos.getMoveNumber() - 20) / (3/2);
+                estMovesLeft = Math.max(10, estMovesLeft);  // make sure this doesnt drop below a certain threshold
                 
                 // create a reasonable search time goal to aim for, e.g. 100s and 40 moves left, use 100/40 = 2.5s for this move
                 // also account for increment if applicable
@@ -122,7 +122,7 @@ public class SearchThread extends Thread {
                 passedTimeMs += lastIterTimeMs;
 
                 // stop searching if we've taken longer than goal time or are too close to continue
-                if (passedTimeMs + 4*lastIterTimeMs >= goalTimeMs) {
+                if (passedTimeMs + 2*lastIterTimeMs >= goalTimeMs) {
                     stopSignal = true;
                     break;
                 }

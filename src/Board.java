@@ -427,9 +427,8 @@ public class Board {
         // set the appropriate bit in appropriate bitboard
         this.bitboards[offset] = Bitboards.setBit(this.bitboards[offset], Bitboards.toIndex(coord));
         
-        // old, non-bitboard way
-        // set this.tiles for new square to piece
-        // this.tiles[7 - coord.getY()][coord.getX()] = new Piece(piece.getColour(), piece.getType(), coord, this);
+        // update controlled squares bitboards
+        this.checkControlledSquares();
     }
 
     public void removePieceAt(Coord coord) {
@@ -438,14 +437,15 @@ public class Board {
             this.bitboards[i] = Bitboards.unsetBit(this.bitboards[i], Bitboards.toIndex(coord));
         }
         
-        // old way with this.tiles
-        // this.tiles[7 - coord.getY()][coord.getX()] = new Piece(Colour.None, PieceType.empty, coord, this);
+        // update controlled squares bitboards
+        this.checkControlledSquares();
     }
 
     public boolean isSquareAttacked(Coord atCoord, Colour byColour) {
         return Bitboards.match(this.bitboards[byColour == Colour.White ? 12 : 13], atCoord);
     }
 
+    // only to be used for detection of checks, not intended for showing only fully legal moves
     private void checkControlledSquares() {
         // reset existing controlled square bitboards
         this.bitboards[12] = 0;
@@ -482,49 +482,9 @@ public class Board {
         }
     }
 
-    // only to be used for detection of checks, not intended for showing only fully legal moves
+    // this method only checks for the parts that arent easily 'bitboard-able' - the other moves can be done quickly in parallel
     private boolean checkIfSquareControlled(Coord atCoord, Colour byColour) {
         if (byColour == Colour.None) return false; // method should only be called with byColour White or Black
-
-        // seperate handling of pawn moves
-        // final int moveDirection = (byColour == Colour.White ? 1 : -1);
-        // final Coord[] pawnCoords = {new Coord(atCoord.getX()+1, atCoord.getY()-moveDirection),
-        //                             new Coord(atCoord.getX()-1, atCoord.getY()-moveDirection)};
-        // for (Coord c : pawnCoords) {
-        //     if (!c.isInBounds()) continue;
-        //     Piece p = this.pieceAt(c);
-        //     if (p.getColour() != byColour) continue;
-        //     if (p.getType() == PieceType.pawn) return true;
-        // }
-
-        // seperate handling of knight moves
-
-        // (this comment copied from Piece.getCandidateMoves())
-        // there are 8 possible moves that a knight can make:
-        // -2 -1, -2 +1, +2 -1, +2 +1, -1 -2, -1 +2, +1 -2, +1 +2
-        // all of these can be represented in another way by using 3 booleans:
-        // most significant direction (x/y), x is positive (t/f), y is positive (t/f)
-        // these can be handled iteratively in a similar way to rook moves but with an extra bool
-        // for (int sigX = 0; sigX < 2; sigX++) {
-        //     for (int posX = 0; posX < 2; posX ++) {
-        //         for (int posY = 0; posY < 2; posY++) {
-        //             // calculate the amount that should be moved in each direction on this move (see above)
-        //             int xMovement = -1;
-        //             int yMovement = -1;
-        //             if (posX != 0) xMovement = 1;
-        //             if (posY != 0) yMovement = 1;
-        //             if (sigX != 0) xMovement *= 2;
-        //             else yMovement *= 2;
-
-        //             // add this change to current coord and add if move is legal
-        //             Coord c = new Coord(atCoord.getX()+xMovement, atCoord.getY()+yMovement);
-        //             if (!c.isInBounds()) continue;
-        //             if (this.pieceAt(c).getType() == PieceType.knight && this.pieceAt(c).getColour() == byColour) {
-        //                 return true;
-        //             }
-        //         }
-        //     }
-        // }
 
         // iterate over each possible direction a piece can move in
         for (int i = -1; i <= 1; i++) {
