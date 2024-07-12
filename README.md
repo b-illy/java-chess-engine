@@ -1,3 +1,8 @@
+## NOTICE
+
+This project is not in active development or maintenance and will only receive occassional changes - it was created as an experimental hobby project and isn't expected to be used in real-world settings.
+
+
 # java-chess-engine
 
 ## Usage
